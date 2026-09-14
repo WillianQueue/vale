@@ -14,6 +14,9 @@ Route::get('/chat', function () {
 Route::post('/chat/enviar', [ChatController::class, 'enviar'])
     ->name('chat.enviar');
 
+Route::get('/chat/{conversation}', [ChatController::class, 'show'])
+    ->name('chat.show');
+
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])
         ->name('login');

@@ -677,7 +677,7 @@
                     <div
                         class="history-item"
                         data-conversation-id="{{ $conversa->id }}"
-                        data-messages="{{ e(json_encode($conversa->chats->map(fn ($chat) => ['question' => $chat->pergunta, 'answer' => $chat->resposta]), JSON_UNESCAPED_UNICODE)) }}"
+                        data-show-url="{{ route('chat.show', $conversa) }}"
                         data-delete-url="{{ route('chat.destroy', $conversa) }}">
                         <button type="button" class="history-question">
                             {{ \Illuminate\Support\Str::limit($conversa->title, 42) }}
@@ -879,11 +879,8 @@
 
             item.className = 'history-item';
             item.dataset.conversationId = conversationId;
+            item.dataset.showUrl = `/chat/${conversationId}`;
             item.dataset.deleteUrl = `/chat/${conversationId}`;
-            item.dataset.messages = JSON.stringify([{
-                question: question,
-                answer: answer
-            }]);
 
             questionButton.type = 'button';
             questionButton.className = 'history-question';
@@ -901,19 +898,39 @@
             historyList.prepend(item);
         }
 
-        function openConversation(item) {
-            const conversation = JSON.parse(item.dataset.messages || '[]');
-
+        async function openConversation(item) {
             messages.innerHTML = '';
             hideError();
             greeting.style.display = 'none';
-
-            conversation.forEach((message) => {
-                addMessage('user', message.question);
-                addMessage('assistant', message.answer);
-            });
-
             currentConversationId = item.dataset.conversationId || null;
+
+            try {
+                const response = await fetch(item.dataset.showUrl, {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        data.message ||
+                        'Não foi possível carregar a conversa.'
+                    );
+                }
+
+                data.messages.forEach((message) => {
+                    addMessage('user', message.question);
+                    addMessage('assistant', message.answer);
+                });
+            } catch (exception) {
+                showError(
+                    exception.message ||
+                    'Não foi possível carregar a conversa.'
+                );
+            }
+
             composer.value = '';
             composer.style.height = '28px';
             sendButton.disabled = true;
@@ -1036,24 +1053,6 @@
                         data.text,
                         currentConversationId
                     );
-                } else {
-                    const currentItem = document.querySelector(
-                        `[data-conversation-id="${currentConversationId}"]`
-                    );
-
-                    if (currentItem) {
-                        const conversation = JSON.parse(
-                            currentItem.dataset.messages || '[]'
-                        );
-
-                        conversation.push({
-                            question: pergunta,
-                            answer: data.text
-                        });
-
-                        currentItem.dataset.messages =
-                            JSON.stringify(conversation);
-                    }
                 }
             } catch (exception) {
                 answer.textContent =
@@ -1177,7 +1176,7 @@
             if (questionButton) {
                 const item = questionButton.closest('.history-item');
 
-                if (item && item.dataset.messages) {
+                if (item && item.dataset.showUrl) {
                     openConversation(item);
                 }
             }

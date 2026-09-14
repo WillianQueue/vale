@@ -122,6 +122,28 @@ class ChatController extends Controller
         ]);
     }
 
+    public function show(Conversation $conversation): JsonResponse
+    {
+        abort_unless(
+            Auth::check() && $conversation->user_id === Auth::id(),
+            403
+        );
+
+        return response()->json([
+            'id' => $conversation->id,
+            'title' => $conversation->title,
+            'messages' => $conversation
+                ->chats()
+                ->oldest()
+                ->get(['pergunta', 'resposta'])
+                ->map(fn (Chat $chat): array => [
+                    'question' => $chat->pergunta,
+                    'answer' => $chat->resposta,
+                ])
+                ->values(),
+        ]);
+    }
+
     public function destroy(Conversation $conversation): JsonResponse
     {
         abort_unless(
