@@ -123,7 +123,7 @@ ini_set('memory_limit', '512M');
 
         try {
             $response = Http::timeout(-1)->post('http://localhost:11434/api/generate', [
-                'model' => 'qwen2.5:3b',
+                'model' => 'gemma3:12b',
                 'prompt' => $systemPrompt,
                 'stream' => false
             ]);

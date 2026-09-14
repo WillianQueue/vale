@@ -3,154 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Vale IA Chat</title>
+
     <style>
         * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
         }
 
-        html, body {
-            height: 100%;
+        html,
+        body {
             width: 100%;
+            height: 100%;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-            background: #fff;
-            color: #333;
             display: flex;
             flex-direction: column;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: #333;
+            background: #fff;
         }
 
-        /* Header */
         .header {
-            border-bottom: 1px solid #e5e5e5;
-            padding: 12px 20px;
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            background: #fff;
+            justify-content: space-between;
             height: 56px;
+            padding: 12px 20px;
+            border-bottom: 1px solid #e5e5e5;
         }
 
         .logo {
+            color: #16302a;
             font-size: 18px;
             font-weight: 700;
-            background: linear-gradient(135deg, #16302a 0%, #5c8a6c 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
         }
 
         .header-actions {
             display: flex;
-            gap: 12px;
             align-items: center;
+            gap: 12px;
         }
 
         .user-info {
-            font-size: 13px;
-            color: #666;
             padding-right: 12px;
             border-right: 1px solid #e5e5e5;
+            color: #666;
+            font-size: 13px;
+        }
+
+        .btn-logout,
+        .btn-new-chat,
+        .btn-send {
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
         }
 
         .btn-logout {
             padding: 8px 14px;
             border: 1px solid #d1d5db;
-            background: white;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
+            background: #fff;
             color: #333;
         }
 
-        .btn-logout:hover {
+        .btn-logout:hover,
+        .btn-new-chat:hover {
             background: #f9f9f9;
-            border-color: #ccc;
         }
 
-        /* Main Layout */
         .main-container {
             display: flex;
             flex: 1;
-            overflow: hidden;
+            min-height: 0;
         }
 
         .sidebar {
-            width: 260px;
-            background: #fff;
-            border-right: 1px solid #e5e5e5;
             display: flex;
             flex-direction: column;
+            width: 260px;
             padding: 12px;
-        }
-
-        .sidebar-header {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 16px;
+            border-right: 1px solid #e5e5e5;
         }
 
         .btn-new-chat {
-            flex: 1;
+            width: 100%;
             padding: 10px 12px;
-            background: white;
             border: 1px solid #d1d5db;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-        }
-
-        .btn-new-chat:hover {
-            background: #f9f9f9;
-            border-color: #ccc;
+            background: #fff;
         }
 
         .chat-history {
             flex: 1;
             overflow-y: auto;
-            margin-bottom: 12px;
-        }
-
-        .chat-history::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .chat-history::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .chat-history::-webkit-scrollbar-thumb {
-            background: #d1d5db;
-            border-radius: 3px;
-        }
-
-        .chat-history::-webkit-scrollbar-thumb:hover {
-            background: #9ca3af;
+            margin-top: 16px;
         }
 
         .history-item {
+            overflow: hidden;
             padding: 10px 12px;
+            margin-bottom: 4px;
             border-radius: 6px;
-            font-size: 13px;
             color: #666;
             cursor: pointer;
-            white-space: nowrap;
-            overflow: hidden;
+            font-size: 13px;
             text-overflow: ellipsis;
-            transition: all 0.2s;
-            margin-bottom: 4px;
+            white-space: nowrap;
         }
 
         .history-item:hover {
@@ -159,111 +120,89 @@
         }
 
         .sidebar-footer {
-            border-top: 1px solid #e5e5e5;
             padding-top: 12px;
-            font-size: 12px;
+            border-top: 1px solid #e5e5e5;
             color: #999;
+            font-size: 12px;
             text-align: center;
         }
 
-        /* Chat Area */
         .chat-area {
-            flex: 1;
             display: flex;
+            flex: 1;
             flex-direction: column;
-            background: #fff;
+            min-width: 0;
         }
 
         .chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 16px 20px;
             display: flex;
+            flex: 1;
             flex-direction: column;
             gap: 16px;
+            overflow-y: auto;
+            padding: 20px;
         }
 
-        .chat-messages::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .chat-messages::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .chat-messages::-webkit-scrollbar-thumb {
-            background: #d1d5db;
-            border-radius: 4px;
-        }
-
-        .chat-messages::-webkit-scrollbar-thumb:hover {
-            background: #9ca3af;
-        }
-
-        /* Empty State */
         .empty-state {
             display: flex;
+            flex: 1;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100%;
-            text-align: center;
             padding: 40px 20px;
+            text-align: center;
         }
 
         .empty-icon {
-            font-size: 64px;
             margin-bottom: 20px;
+            font-size: 64px;
         }
 
         .empty-title {
-            font-size: 28px;
-            font-weight: 600;
-            color: #0f1d18;
             margin-bottom: 8px;
+            color: #0f1d18;
+            font-size: 28px;
         }
 
         .empty-description {
-            font-size: 16px;
-            color: #666;
-            margin-bottom: 32px;
             max-width: 400px;
+            color: #666;
+            font-size: 16px;
         }
 
         .quick-prompts {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            grid-template-columns: repeat(2, minmax(150px, 1fr));
             gap: 12px;
-            margin-bottom: 20px;
+            max-width: 500px;
+            margin-top: 28px;
         }
 
         .quick-prompt {
             padding: 14px 12px;
-            background: white;
             border: 1px solid #d1d5db;
             border-radius: 8px;
+            background: #fff;
             cursor: pointer;
-            transition: all 0.2s;
             font-size: 13px;
             text-align: center;
-            line-height: 1.4;
         }
 
         .quick-prompt:hover {
-            background: #f9f9f9;
             border-color: #5c8a6c;
             color: #5c8a6c;
         }
 
-        /* Message Styles */
         .message {
             display: flex;
             gap: 12px;
-            animation: slideIn 0.3s ease-out;
+            max-width: 800px;
+            animation: slideIn .3s ease-out;
         }
 
         .message.user {
-            justify-content: flex-end;
+            align-self: flex-end;
+            flex-direction: row-reverse;
         }
 
         @keyframes slideIn {
@@ -271,6 +210,7 @@
                 opacity: 0;
                 transform: translateY(8px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -278,32 +218,33 @@
         }
 
         .message-avatar {
+            display: flex;
+            flex: 0 0 32px;
+            align-items: center;
+            justify-content: center;
             width: 32px;
             height: 32px;
             border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            flex-shrink: 0;
+            background: #e5e7eb;
         }
 
         .message.assistant .message-avatar {
-            background: linear-gradient(135deg, #16302a 0%, #5c8a6c 100%);
-            color: white;
-        }
-
-        .message.user .message-avatar {
-            background: #e5e7eb;
-            color: #333;
+            background: linear-gradient(135deg, #16302a, #5c8a6c);
+            color: #fff;
         }
 
         .message-content {
-            max-width: 600px;
+            max-width: 650px;
             padding: 12px 16px;
             border-radius: 8px;
             line-height: 1.6;
-            word-wrap: break-word;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #16302a, #0f1d18);
+            color: #fff;
         }
 
         .message.assistant .message-content {
@@ -311,240 +252,209 @@
             color: #333;
         }
 
-        .message.user .message-content {
-            background: linear-gradient(135deg, #16302a 0%, #0f1d18 100%);
-            color: white;
-        }
-
-        /* Input Area */
         .input-area {
-            border-top: 1px solid #e5e5e5;
             padding: 16px 20px;
-            background: #fff;
+            border-top: 1px solid #e5e5e5;
         }
 
         .input-wrapper {
-            max-width: 900px;
-            margin: 0 auto;
-            width: 100%;
             display: flex;
             gap: 8px;
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
         }
 
         .input-field {
             flex: 1;
-            padding: 12px 16px;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            font-size: 14px;
-            font-family: inherit;
-            resize: none;
             min-height: 44px;
             max-height: 200px;
-            transition: all 0.2s;
+            padding: 12px 16px;
+            resize: none;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            outline: none;
+            font-family: inherit;
+            font-size: 14px;
         }
 
         .input-field:focus {
-            outline: none;
             border-color: #5c8a6c;
-            box-shadow: 0 0 0 3px rgba(92, 138, 108, 0.1);
-        }
-
-        .input-field::placeholder {
-            color: #999;
+            box-shadow: 0 0 0 3px rgba(92, 138, 108, .1);
         }
 
         .btn-send {
-            padding: 12px 20px;
-            background: linear-gradient(135deg, #16302a 0%, #0f1d18 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.3s;
             height: 44px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-
-        .btn-send:hover:not(:disabled) {
-            opacity: 0.9;
-            box-shadow: 0 4px 12px rgba(15, 29, 24, 0.2);
-            transform: translateY(-1px);
+            padding: 0 20px;
+            border: 0;
+            background: linear-gradient(135deg, #16302a, #0f1d18);
+            color: #fff;
         }
 
         .btn-send:disabled {
-            opacity: 0.5;
             cursor: not-allowed;
+            opacity: .5;
         }
 
-        /* Responsive */
+        .error-message {
+            padding: 8px 20px;
+            color: #991b1b;
+            font-size: 14px;
+            text-align: center;
+        }
+
         @media (max-width: 768px) {
             .sidebar {
                 display: none;
             }
 
-            .header {
-                flex-wrap: wrap;
-            }
-
-            .chat-messages {
-                padding: 12px 16px;
-                gap: 12px;
-            }
-
-            .message-content {
+            .message {
                 max-width: 100%;
-            }
-
-            .input-area {
-                padding: 12px 16px;
             }
 
             .quick-prompts {
                 grid-template-columns: 1fr;
             }
 
-            .empty-title {
-                font-size: 24px;
+            .chat-messages {
+                padding: 12px 16px;
             }
 
-            .empty-description {
-                font-size: 14px;
+            .input-area {
+                padding: 12px 16px;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Header -->
-    <div class="header">
+    <header class="header">
         <div class="logo">Vale IA</div>
+
         <div class="header-actions">
             <div class="user-info">{{ Auth::user()->name }}</div>
-            <form action="{{ route('logout') }}" method="POST" style="display: inline;">
+
+            <form action="{{ route('logout') }}" method="POST">
                 @csrf
                 <button type="submit" class="btn-logout">Sair</button>
             </form>
         </div>
-    </div>
+    </header>
 
-    <!-- Main Container -->
-    <div class="main-container">
-        <!-- Sidebar -->
-        <div class="sidebar">
-            <div class="sidebar-header">
-                <button class="btn-new-chat" onclick="location.reload()">
-                    + Nova conversa
-                </button>
-            </div>
+    <main class="main-container">
+        <aside class="sidebar">
+            <button type="button" class="btn-new-chat" id="newChatBtn">
+                + Nova conversa
+            </button>
 
             <div class="chat-history" id="chatHistory">
-                <!-- Histórico será preenchido aqui -->
+                @foreach ($historico ?? [] as $chat)
+                    <div
+                        class="history-item"
+                        title="{{ $chat->pergunta }}"
+                        data-question="{{ $chat->pergunta }}"
+                    >
+                        {{ \Illuminate\Support\Str::limit($chat->pergunta, 40) }}
+                    </div>
+                @endforeach
             </div>
 
             <div class="sidebar-footer">
                 Vale IA v1.0
             </div>
-        </div>
+        </aside>
 
-        <!-- Chat Area -->
-        <div class="chat-area">
-            <!-- Messages -->
+        <section class="chat-area">
             <div class="chat-messages" id="chatMessages">
-                <div class="empty-state">
+                <div class="empty-state" id="emptyState">
                     <div class="empty-icon">🌱</div>
-                    <div class="empty-title">O que você gostaria de saber?</div>
-                    <div class="empty-description">
-                        Faça perguntas sobre o Vale do Paraíba e receba respostas inteligentes
-                    </div>
+
+                    <h1 class="empty-title">
+                        O que você gostaria de saber?
+                    </h1>
+
+                    <p class="empty-description">
+                        Faça perguntas sobre o Vale do Paraíba e receba respostas inteligentes.
+                    </p>
 
                     <div class="quick-prompts">
-                        <div class="quick-prompt" onclick="sendQuickMessage('Quais são as principais cidades do Vale do Paraíba?')">
+                        <button
+                            type="button"
+                            class="quick-prompt"
+                            data-question="Quais são as principais cidades do Vale do Paraíba?"
+                        >
                             🏙️ Principais cidades
-                        </div>
-                        <div class="quick-prompt" onclick="sendQuickMessage('Qual é a economia do Vale?')">
+                        </button>
+
+                        <button
+                            type="button"
+                            class="quick-prompt"
+                            data-question="Qual é a economia do Vale do Paraíba?"
+                        >
                             💼 Economia
-                        </div>
-                        <div class="quick-prompt" onclick="sendQuickMessage('Quais são os pontos turísticos?')">
+                        </button>
+
+                        <button
+                            type="button"
+                            class="quick-prompt"
+                            data-question="Quais são os pontos turísticos do Vale do Paraíba?"
+                        >
                             🎭 Turismo
-                        </div>
-                        <div class="quick-prompt" onclick="sendQuickMessage('Fale sobre a história do Vale')">
+                        </button>
+
+                        <button
+                            type="button"
+                            class="quick-prompt"
+                            data-question="Fale sobre a história do Vale do Paraíba."
+                        >
                             📚 História
-                        </div>
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Input -->
+            <div id="errorMessage" class="error-message" hidden></div>
+
             <div class="input-area">
                 <div class="input-wrapper">
-                    <textarea 
-                        class="input-field" 
-                        id="messageInput" 
+                    <textarea
+                        id="messageInput"
+                        class="input-field"
                         placeholder="Escreva sua pergunta sobre o Vale do Paraíba..."
-                        onkeypress="handleKeyPress(event)"
+                        rows="1"
                     ></textarea>
-                    <button class="btn-send" id="sendBtn" onclick="sendMessage()">Enviar</button>
+
+                    <button type="button" id="sendBtn" class="btn-send">
+                        Enviar
+                    </button>
                 </div>
             </div>
-        </div>
-    </div>
+        </section>
+    </main>
 
     <script>
         const input = document.getElementById('messageInput');
         const sendBtn = document.getElementById('sendBtn');
         const chatMessages = document.getElementById('chatMessages');
         const chatHistory = document.getElementById('chatHistory');
+        const errorMessage = document.getElementById('errorMessage');
+        const csrfToken = document
+            .querySelector('meta[name="csrf-token"]')
+            .getAttribute('content');
 
-        const responses = {
-            'cidades': 'O Vale do Paraíba é composto por importantes municípios como São José dos Campos, Taubaté, Guaratinguetá, Pindamonhangaba, Cruzeiro, Resende, Volta Redonda e Campos do Jordão. Cada uma dessas cidades desempenha papel significativo na região.',
-            'economia': 'A economia do Vale do Paraíba é diversificada com destaque para: Tecnologia (especialmente em São José dos Campos), Educação, Turismo, Indústria Automóvel, Comércio e Serviços. É uma das regiões mais desenvolvidas do estado de São Paulo.',
-            'turismo': 'Os principais atrativos turísticos incluem: Campos do Jordão (estância climática), as Serras da Mantiqueira, parques naturais, cânions, museus, patrimônio histórico colonial, além de diversos hotéis, pousadas e centros de lazer.',
-            'história': 'O Vale do Paraíba tem uma história rica, sendo importante durante o Brasil Colônia, passando pelo ciclo do café no século XIX, e se consolidando como polo industrial no século XX. Possui diversos patrimônios históricos preservados.'
-        };
+        function clearEmptyState() {
+            const emptyState = document.getElementById('emptyState');
 
-        let messageCount = 0;
-
-        function sendMessage() {
-            const message = input.value.trim();
-            if (!message) return;
-
-            // Clear empty state on first message
-            if (messageCount === 0) {
-                chatMessages.innerHTML = '';
+            if (emptyState) {
+                emptyState.remove();
             }
-
-            // Add user message
-            addMessage(message, 'user');
-            input.value = '';
-            input.style.height = 'auto';
-            sendBtn.disabled = true;
-
-            // Simulate AI response
-            setTimeout(() => {
-                const response = getResponse(message);
-                addMessage(response, 'assistant');
-                sendBtn.disabled = false;
-                input.focus();
-            }, 600);
-
-            // Add to history
-            addToHistory(message);
-        }
-
-        function sendQuickMessage(message) {
-            input.value = message;
-            sendMessage();
         }
 
         function addMessage(text, sender) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${sender}`;
-            
+            clearEmptyState();
+
+            const message = document.createElement('div');
+            message.className = `message ${sender}`;
+
             const avatar = document.createElement('div');
             avatar.className = 'message-avatar';
             avatar.textContent = sender === 'user' ? '👤' : '🤖';
@@ -553,55 +463,142 @@
             content.className = 'message-content';
             content.textContent = text;
 
-            if (sender === 'user') {
-                messageDiv.appendChild(content);
-                messageDiv.appendChild(avatar);
-            } else {
-                messageDiv.appendChild(avatar);
-                messageDiv.appendChild(content);
-            }
+            message.appendChild(avatar);
+            message.appendChild(content);
+            chatMessages.appendChild(message);
 
-            chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
-            messageCount++;
         }
 
-        function getResponse(question) {
-            const lower = question.toLowerCase();
-            for (const [key, value] of Object.entries(responses)) {
-                if (lower.includes(key)) {
-                    return value;
-                }
-            }
-            return 'Ótima pergunta! Estou processando sua pergunta. Em breve terei uma resposta mais detalhada para você.';
-        }
-
-        function addToHistory(message) {
+        function addToHistory(question) {
             const item = document.createElement('div');
+
             item.className = 'history-item';
-            item.textContent = message.substring(0, 30) + (message.length > 30 ? '...' : '');
-            item.title = message;
-            item.onclick = () => {
-                chatMessages.innerHTML = '';
-                sendQuickMessage(message);
-            };
-            chatHistory.insertBefore(item, chatHistory.firstChild);
+            item.title = question;
+            item.dataset.question = question;
+            item.textContent = question.length > 40
+                ? `${question.substring(0, 40)}...`
+                : question;
+
+            chatHistory.prepend(item);
         }
 
-        function handleKeyPress(event) {
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.hidden = false;
+        }
+
+        function hideError() {
+            errorMessage.textContent = '';
+            errorMessage.hidden = true;
+        }
+
+        async function sendMessage(question = null) {
+            const pergunta = (question ?? input.value).trim();
+
+            if (!pergunta || sendBtn.disabled) {
+                return;
+            }
+
+            hideError();
+            addMessage(pergunta, 'user');
+            addToHistory(pergunta);
+
+            input.value = '';
+            input.style.height = '44px';
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'Aguarde...';
+
+            try {
+                const response = await fetch('{{ route('chat.enviar') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken
+                    },
+                    body: JSON.stringify({
+                        pergunta: pergunta
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        data.message || 'Não foi possível enviar a pergunta.'
+                    );
+                }
+
+                if (!data.resposta) {
+                    throw new Error('O servidor retornou uma resposta vazia.');
+                }
+
+                addMessage(data.resposta, 'assistant');
+            } catch (error) {
+                console.error(error);
+                showError(
+                    error.message ||
+                    'Não foi possível obter uma resposta da Vale IA.'
+                );
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Enviar';
+                input.focus();
+            }
+        }
+
+        function resetChat() {
+            chatMessages.innerHTML = `
+                <div class="empty-state" id="emptyState">
+                    <div class="empty-icon">🌱</div>
+                    <h1 class="empty-title">O que você gostaria de saber?</h1>
+                    <p class="empty-description">
+                        Faça perguntas sobre o Vale do Paraíba e receba respostas inteligentes.
+                    </p>
+                </div>
+            `;
+
+            hideError();
+            input.value = '';
+            input.style.height = '44px';
+            input.focus();
+        }
+
+        sendBtn.addEventListener('click', () => sendMessage());
+
+        input.addEventListener('keydown', function (event) {
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
                 sendMessage();
             }
-        }
-
-        // Auto-resize textarea
-        input.addEventListener('input', () => {
-            input.style.height = 'auto';
-            input.style.height = Math.min(input.scrollHeight, 200) + 'px';
         });
 
-        // Focus on load
+        input.addEventListener('input', function () {
+            this.style.height = 'auto';
+            this.style.height = `${Math.min(this.scrollHeight, 200)}px`;
+        });
+
+        document
+            .getElementById('newChatBtn')
+            .addEventListener('click', resetChat);
+
+        document
+            .querySelectorAll('.quick-prompt')
+            .forEach((button) => {
+                button.addEventListener('click', () => {
+                    sendMessage(button.dataset.question);
+                });
+            });
+
+        chatHistory.addEventListener('click', function (event) {
+            const item = event.target.closest('.history-item');
+
+            if (item) {
+                sendMessage(item.dataset.question);
+            }
+        });
+
         input.focus();
     </script>
 </body>
