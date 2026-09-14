@@ -36,6 +36,6 @@ Route::middleware('auth')->group(function () {
         return redirect()->route('home');
     })->name('dashboard');
 
-    Route::delete('/chat/{chat}', [ChatController::class, 'destroy'])
+    Route::delete('/chat/{conversation}', [ChatController::class, 'destroy'])
         ->name('chat.destroy');
 });

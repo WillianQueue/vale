@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -119,10 +120,20 @@
         }
 
         .brand {
+            display: flex;
+            align-items: center;
             gap: 8px;
             color: #e8e6e0;
             font-size: 15px;
             font-weight: 600;
+        }
+
+        .brand-name {
+            color: #e8e6e0;
+        }
+
+        .brand-label {
+            color: var(--accent);
         }
 
         .brand span {
@@ -392,7 +403,7 @@
             padding: 17px 0;
         }
 
-        .message + .message {
+        .message+.message {
             border-top: 1px solid var(--border);
         }
 
@@ -456,7 +467,10 @@
         }
 
         @keyframes blink {
-            0%, 80%, 100% {
+
+            0%,
+            80%,
+            100% {
                 opacity: .4;
                 transform: scale(0);
             }
@@ -640,7 +654,10 @@
 
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <div class="brand">Va<span>le</span> IA</div>
+                <div class="brand">
+                    <span class="brand-name">Vale</span>
+                    <span class="brand-label">IA</span>
+                </div>
 
                 <button type="button" class="icon-button" id="closeSidebar">
                     ×
@@ -656,46 +673,45 @@
 
                 <div id="historyList">
                     @auth
-                        @foreach ($historico ?? [] as $chat)
-                            <div
-                                class="history-item"
-                                data-question="{{ $chat->pergunta }}"
-                                data-delete-url="{{ route('chat.destroy', $chat) }}"
-                            >
-                                <button type="button" class="history-question">
-                                    {{ \Illuminate\Support\Str::limit($chat->pergunta, 42) }}
-                                </button>
+                    @foreach ($historico ?? [] as $conversa)
+                    <div
+                        class="history-item"
+                        data-conversation-id="{{ $conversa->id }}"
+                        data-messages="{{ e(json_encode($conversa->chats->map(fn ($chat) => ['question' => $chat->pergunta, 'answer' => $chat->resposta]), JSON_UNESCAPED_UNICODE)) }}"
+                        data-delete-url="{{ route('chat.destroy', $conversa) }}">
+                        <button type="button" class="history-question">
+                            {{ \Illuminate\Support\Str::limit($conversa->title, 42) }}
+                        </button>
 
-                                <button
-                                    type="button"
-                                    class="delete-chat"
-                                    title="Excluir conversa"
-                                    aria-label="Excluir conversa"
-                                >
-                                    ×
-                                </button>
-                            </div>
-                        @endforeach
+                        <button
+                            type="button"
+                            class="delete-chat"
+                            title="Excluir conversa"
+                            aria-label="Excluir conversa">
+                            ×
+                        </button>
+                    </div>
+                    @endforeach
                     @else
-                        <div class="history-question">
-                            Faça login para salvar o histórico.
-                        </div>
+                    <div class="history-question">
+                        Faça login para salvar o histórico.
+                    </div>
                     @endauth
                 </div>
             </div>
 
             <div class="sidebar-footer">
                 @auth
-                    <div class="avatar">
-                        {{ mb_strtoupper(mb_substr(Auth::user()->name, 0, 2)) }}
-                    </div>
+                <div class="avatar">
+                    {{ mb_strtoupper(mb_substr(Auth::user()->name, 0, 2)) }}
+                </div>
 
-                    <div class="user-name">
-                        {{ Auth::user()->name }}
-                    </div>
+                <div class="user-name">
+                    {{ Auth::user()->name }}
+                </div>
                 @else
-                    <div class="avatar">VI</div>
-                    <div class="user-name">Visitante</div>
+                <div class="avatar">VI</div>
+                <div class="user-name">Visitante</div>
                 @endauth
             </div>
         </aside>
@@ -714,15 +730,15 @@
 
                 <div class="topbar-right">
                     @auth
-                        <form action="{{ route('logout') }}" method="POST">
-                            @csrf
-                            <button type="submit" class="topbar-link">
-                                Sair
-                            </button>
-                        </form>
+                    <form action="{{ route('logout') }}" method="POST">
+                        @csrf
+                        <button type="submit" class="topbar-link">
+                            Sair
+                        </button>
+                    </form>
                     @else
-                        <a href="{{ route('login') }}" class="topbar-link">Entrar</a>
-                        <a href="{{ route('register') }}" class="topbar-link">Cadastrar</a>
+                    <a href="{{ route('login') }}" class="topbar-link">Entrar</a>
+                    <a href="{{ route('register') }}" class="topbar-link">Cadastrar</a>
                     @endauth
 
                     <button type="button" class="icon-button" id="openSettings">
@@ -748,8 +764,7 @@
                             <button
                                 type="button"
                                 class="suggestion"
-                                data-question="Quais são as principais cidades do Vale do Paraíba?"
-                            >
+                                data-question="Quais são as principais cidades do Vale do Paraíba?">
                                 <strong>Principais cidades</strong>
                                 <span>Conheça os municípios da região</span>
                             </button>
@@ -757,8 +772,7 @@
                             <button
                                 type="button"
                                 class="suggestion"
-                                data-question="Qual é a economia do Vale do Paraíba?"
-                            >
+                                data-question="Qual é a economia do Vale do Paraíba?">
                                 <strong>Economia</strong>
                                 <span>Atividades econômicas da região</span>
                             </button>
@@ -766,8 +780,7 @@
                             <button
                                 type="button"
                                 class="suggestion"
-                                data-question="Quais são os principais pontos turísticos do Vale do Paraíba?"
-                            >
+                                data-question="Quais são os principais pontos turísticos do Vale do Paraíba?">
                                 <strong>Turismo</strong>
                                 <span>Locais e atrações turísticas</span>
                             </button>
@@ -775,8 +788,7 @@
                             <button
                                 type="button"
                                 class="suggestion"
-                                data-question="Fale sobre a história do Vale do Paraíba."
-                            >
+                                data-question="Fale sobre a história do Vale do Paraíba.">
                                 <strong>História</strong>
                                 <span>Conheça a formação histórica do Vale</span>
                             </button>
@@ -794,15 +806,13 @@
                     <textarea
                         id="composer"
                         rows="1"
-                        placeholder="Pergunte algo sobre o Vale do Paraíba..."
-                    ></textarea>
+                        placeholder="Pergunte algo sobre o Vale do Paraíba..."></textarea>
 
                     <button
                         type="button"
                         class="send-button"
                         id="sendButton"
-                        disabled
-                    >
+                        disabled>
                         ↑
                     </button>
                 </div>
@@ -860,21 +870,57 @@
             error.classList.remove('visible');
         }
 
-        function addHistory(question) {
+        let currentConversationId = null;
+
+        function addHistory(question, answer, conversationId) {
             const item = document.createElement('div');
             const questionButton = document.createElement('button');
+            const deleteButton = document.createElement('button');
 
             item.className = 'history-item';
-            item.dataset.question = question;
+            item.dataset.conversationId = conversationId;
+            item.dataset.deleteUrl = `/chat/${conversationId}`;
+            item.dataset.messages = JSON.stringify([{
+                question: question,
+                answer: answer
+            }]);
 
             questionButton.type = 'button';
             questionButton.className = 'history-question';
-            questionButton.textContent = question.length > 42
-                ? `${question.substring(0, 42)}...`
-                : question;
+            questionButton.textContent = question.length > 42 ?
+                `${question.substring(0, 42)}...` :
+                question;
+
+            deleteButton.type = 'button';
+            deleteButton.className = 'delete-chat';
+            deleteButton.title = 'Excluir conversa';
+            deleteButton.textContent = '×';
 
             item.appendChild(questionButton);
+            item.appendChild(deleteButton);
             historyList.prepend(item);
+        }
+
+        function openConversation(item) {
+            const conversation = JSON.parse(item.dataset.messages || '[]');
+
+            messages.innerHTML = '';
+            hideError();
+            greeting.style.display = 'none';
+
+            conversation.forEach((message) => {
+                addMessage('user', message.question);
+                addMessage('assistant', message.answer);
+            });
+
+            currentConversationId = item.dataset.conversationId || null;
+            composer.value = '';
+            composer.style.height = '28px';
+            sendButton.disabled = true;
+            scrollBottom();
+
+            sidebar.classList.remove('open');
+            backdrop.classList.remove('open');
         }
 
         function addMessage(role, text) {
@@ -932,33 +978,36 @@
         async function sendMessage(question = null) {
             const pergunta = (question ?? composer.value).trim();
 
-            if (!pergunta || sendButton.disabled) {
+            if (!pergunta || sendButton.dataset.sending === 'true') {
                 return;
             }
 
             hideError();
             addMessage('user', pergunta);
-            addHistory(pergunta);
-
             composer.value = '';
             composer.style.height = '28px';
             sendButton.disabled = true;
+            sendButton.dataset.sending = 'true';
 
             const answer = addTyping();
             answer.textContent = '';
 
             try {
-                const response = await fetch('{{ route('chat.enviar') }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/x-ndjson',
-                        'X-CSRF-TOKEN': csrfToken
-                    },
-                    body: JSON.stringify({
-                        pergunta: pergunta
-                    })
-                });
+                const response = await fetch(
+                    @json(route('chat.enviar')),
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken
+                        },
+                        body: JSON.stringify({
+                            pergunta: pergunta,
+                            conversation_id: currentConversationId
+                        })
+                    }
+                );
 
                 if (!response.ok) {
                     const errorData = await response
@@ -971,58 +1020,40 @@
                     );
                 }
 
-                if (!response.body) {
-                    throw new Error(
-                        'O navegador não suporta resposta em streaming.'
-                    );
-                }
-
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder('utf-8');
-                let buffer = '';
-
-                while (true) {
-                    const { value, done } = await reader.read();
-
-                    if (done) {
-                        break;
-                    }
-
-                    buffer += decoder.decode(value, {
-                        stream: true
-                    });
-
-                    const lines = buffer.split('\n');
-                    buffer = lines.pop() || '';
-
-                    for (const line of lines) {
-                        if (!line.trim()) {
-                            continue;
-                        }
-
-                        const data = JSON.parse(line);
-
-                        if (data.text) {
-                            answer.textContent += data.text;
-                            scrollBottom();
-                        }
-                    }
-                }
-
-                buffer += decoder.decode();
-
-                if (buffer.trim()) {
-                    const data = JSON.parse(buffer);
-
-                    if (data.text) {
-                        answer.textContent += data.text;
-                    }
-                }
+                const data = await response.json();
+                answer.textContent = data.text || '';
 
                 if (!answer.textContent.trim()) {
                     throw new Error(
                         'O modelo não retornou uma resposta.'
                     );
+                }
+
+                if (data.conversation_id && !currentConversationId) {
+                    currentConversationId = data.conversation_id;
+                    addHistory(
+                        pergunta,
+                        data.text,
+                        currentConversationId
+                    );
+                } else {
+                    const currentItem = document.querySelector(
+                        `[data-conversation-id="${currentConversationId}"]`
+                    );
+
+                    if (currentItem) {
+                        const conversation = JSON.parse(
+                            currentItem.dataset.messages || '[]'
+                        );
+
+                        conversation.push({
+                            question: pergunta,
+                            answer: data.text
+                        });
+
+                        currentItem.dataset.messages =
+                            JSON.stringify(conversation);
+                    }
                 }
             } catch (exception) {
                 answer.textContent =
@@ -1033,6 +1064,7 @@
                     'Verifique se o Ollama está em execução.'
                 );
             } finally {
+                sendButton.dataset.sending = 'false';
                 sendButton.disabled = composer.value.trim() === '';
                 composer.focus();
             }
@@ -1043,7 +1075,9 @@
                 return;
             }
 
-            const question = item.dataset.question;
+            const question = item
+                .querySelector('.history-question')
+                ?.textContent || 'Esta conversa';
 
             if (!confirm(`Excluir esta conversa?\n\n${question}`)) {
                 return;
@@ -1073,6 +1107,10 @@
                 }
 
                 item.remove();
+
+                if (item.dataset.conversationId === currentConversationId) {
+                    resetChat();
+                }
             } catch (exception) {
                 deleteButton.disabled = false;
                 showError(
@@ -1085,6 +1123,7 @@
         function resetChat() {
             messages.innerHTML = '';
             greeting.style.display = '';
+            currentConversationId = null;
             composer.value = '';
             composer.style.height = '28px';
             hideError();
@@ -1138,8 +1177,8 @@
             if (questionButton) {
                 const item = questionButton.closest('.history-item');
 
-                if (item && item.dataset.question) {
-                    sendMessage(item.dataset.question);
+                if (item && item.dataset.messages) {
+                    openConversation(item);
                 }
             }
         });
@@ -1198,4 +1237,5 @@
         }
     </script>
 </body>
+
 </html>

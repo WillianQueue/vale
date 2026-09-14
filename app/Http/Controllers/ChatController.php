@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Chat;
+use App\Models\Conversation;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
@@ -15,14 +17,21 @@ class ChatController extends Controller
 {
     public function index(): View
     {
-        $historico = auth()->check()
-            ? auth()->user()->chats()->latest()->get()
-            : collect();
+        $usuario = Auth::user();
+        $historico = collect();
+
+        if ($usuario instanceof User) {
+            $historico = $usuario
+                ->conversations()
+                ->with(['chats' => fn ($query) => $query->oldest()])
+                ->latest('updated_at')
+                ->get();
+        }
 
         return view('chat', compact('historico'));
     }
 
-    public function enviar(Request $request): Response
+    public function enviar(Request $request): JsonResponse
     {
         set_time_limit(0);
         ini_set('max_execution_time', '0');
@@ -30,27 +39,31 @@ class ChatController extends Controller
 
         $validated = $request->validate([
             'pergunta' => ['required', 'string', 'max:1000'],
+            'conversation_id' => ['nullable', 'integer'],
         ]);
 
         $pergunta = trim($validated['pergunta']);
-
         $contexto = $this->carregarContextoDePasta(
             storage_path('app/documentos'),
             $pergunta
         );
-
         $prompt = $this->montarPrompt($pergunta, $contexto);
+        $usuarioId = Auth::id();
+        $conversa = null;
+
+        if ($usuarioId !== null && !empty($validated['conversation_id'])) {
+            $conversa = Conversation::query()
+                ->where('user_id', $usuarioId)
+                ->findOrFail($validated['conversation_id']);
+        }
 
         try {
             $ollamaResponse = Http::connectTimeout(10)
-                ->withOptions([
-                    'stream' => true,
-                ])
-                ->timeout(0)
-                ->post('http://localhost:11434/api/generate', [
+                ->timeout(300)
+                ->post('http://127.0.0.1:11434/api/generate', [
                     'model' => 'gemma3:12b',
                     'prompt' => $prompt,
-                    'stream' => true,
+                    'stream' => false,
                 ]);
         } catch (\Throwable $exception) {
             Log::error('Erro ao conectar ao Ollama.', [
@@ -63,118 +76,60 @@ class ChatController extends Controller
         }
 
         if (!$ollamaResponse->successful()) {
+            Log::error('Ollama retornou um erro.', [
+                'status' => $ollamaResponse->status(),
+                'body' => $ollamaResponse->body(),
+            ]);
+
             return response()->json([
                 'message' => 'Erro ao comunicar com a API do Ollama.',
             ], 502);
         }
 
-        $usuarioId = auth()->id();
-        $fonte = $contexto !== ''
-            ? 'documentos'
-            : 'conhecimento_geral';
+        $resposta = trim((string) $ollamaResponse->json('response'));
 
-        return response()->stream(function () use (
-            $ollamaResponse,
-            $pergunta,
-            $usuarioId,
-            $fonte
-        ): void {
-            $respostaCompleta = '';
-            $buffer = '';
-            $corpo = $ollamaResponse->toPsrResponse()->getBody();
+        if ($resposta === '') {
+            return response()->json([
+                'message' => 'O modelo não retornou uma resposta.',
+            ], 502);
+        }
 
-            while (!$corpo->eof()) {
-                $buffer .= $corpo->read(8192);
-                $linhas = explode("\n", $buffer);
-                $buffer = array_pop($linhas) ?? '';
+        if ($usuarioId !== null && $conversa === null) {
+            $conversa = Conversation::create([
+                'user_id' => $usuarioId,
+                'title' => mb_substr($pergunta, 0, 120),
+            ]);
+        }
 
-                foreach ($linhas as $linha) {
-                    $linha = trim($linha);
+        if ($conversa !== null) {
+            Chat::create([
+                'user_id' => $usuarioId,
+                'conversation_id' => $conversa->id,
+                'pergunta' => $pergunta,
+                'resposta' => $resposta,
+                'fonte' => $contexto !== ''
+                    ? 'documentos'
+                    : 'conhecimento_geral',
+            ]);
 
-                    if ($linha === '') {
-                        continue;
-                    }
+            $conversa->touch();
+        }
 
-                    $dados = json_decode($linha, true);
-
-                    if (!is_array($dados)) {
-                        continue;
-                    }
-
-                    $trecho = (string) ($dados['response'] ?? '');
-
-                    if ($trecho !== '') {
-                        $respostaCompleta .= $trecho;
-
-                        echo json_encode([
-                            'text' => $trecho,
-                            'done' => false,
-                        ], JSON_UNESCAPED_UNICODE) . "\n";
-
-                        if (ob_get_level() > 0) {
-                            ob_flush();
-                        }
-
-                        flush();
-                    }
-
-                    if (($dados['done'] ?? false) === true) {
-                        break 2;
-                    }
-                }
-            }
-
-            if (trim($buffer) !== '') {
-                $dados = json_decode(trim($buffer), true);
-
-                if (is_array($dados)) {
-                    $trecho = (string) ($dados['response'] ?? '');
-
-                    if ($trecho !== '') {
-                        $respostaCompleta .= $trecho;
-
-                        echo json_encode([
-                            'text' => $trecho,
-                            'done' => false,
-                        ], JSON_UNESCAPED_UNICODE) . "\n";
-                    }
-                }
-            }
-
-            if ($usuarioId !== null && trim($respostaCompleta) !== '') {
-                Chat::create([
-                    'user_id' => $usuarioId,
-                    'pergunta' => $pergunta,
-                    'resposta' => trim($respostaCompleta),
-                    'fonte' => $fonte,
-                ]);
-            }
-
-            echo json_encode([
-                'text' => '',
-                'done' => true,
-            ], JSON_UNESCAPED_UNICODE) . "\n";
-
-            if (ob_get_level() > 0) {
-                ob_flush();
-            }
-
-            flush();
-        }, 200, [
-            'Content-Type' => 'application/x-ndjson; charset=utf-8',
-            'Cache-Control' => 'no-cache, no-store',
-            'X-Accel-Buffering' => 'no',
+        return response()->json([
+            'text' => $resposta,
+            'done' => true,
+            'conversation_id' => $conversa?->id,
         ]);
     }
 
-    public function destroy(Chat $chat): JsonResponse
+    public function destroy(Conversation $conversation): JsonResponse
     {
         abort_unless(
-            auth()->check() && $chat->user_id === auth()->id(),
+            Auth::check() && $conversation->user_id === Auth::id(),
             403
         );
 
-        $chat->delete();
+        $conversation->delete();
 
         return response()->json([
             'status' => 'sucesso',
@@ -224,18 +179,13 @@ class ChatController extends Controller
             preg_split('/\s+/', mb_strtolower($query)) ?: [],
             fn (string $palavra): bool => mb_strlen(trim($palavra)) > 2
         );
-
         $contextoEncontrado = '';
-
         $pdfParser = class_exists(PdfParser::class)
             ? new PdfParser()
             : null;
 
         foreach ($arquivos as $arquivo) {
-            $extensao = strtolower(
-                pathinfo($arquivo, PATHINFO_EXTENSION)
-            );
-
+            $extensao = strtolower(pathinfo($arquivo, PATHINFO_EXTENSION));
             $conteudo = '';
 
             try {
@@ -267,21 +217,24 @@ class ChatController extends Controller
             $relevante = $palavrasChave === [];
 
             foreach ($palavrasChave as $palavra) {
-                if (str_contains($conteudoLower, trim($palavra))) {
+                $palavra = trim($palavra);
+
+                if ($palavra !== '' && str_contains(
+                    $conteudoLower,
+                    $palavra
+                )) {
                     $relevante = true;
                     break;
                 }
             }
 
-            if (!$relevante) {
-                continue;
+            if ($relevante) {
+                $contextoEncontrado .= sprintf(
+                    "--- Documento: %s ---\n%s\n\n",
+                    basename($arquivo),
+                    mb_substr($conteudo, 0, 12000)
+                );
             }
-
-            $contextoEncontrado .= sprintf(
-                "--- Documento: %s ---\n%s\n\n",
-                basename($arquivo),
-                mb_substr($conteudo, 0, 12000)
-            );
         }
 
         return $contextoEncontrado;
