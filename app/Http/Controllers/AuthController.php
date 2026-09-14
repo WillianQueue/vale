@@ -9,51 +9,94 @@ use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
-    public function showLogin() {
+    /**
+     * Show the login form
+     */
+    public function showLogin()
+    {
         return view('auth.login');
     }
 
-    public function login(Request $request) {
+    /**
+     * Show the register form
+     */
+    public function showRegister()
+    {
+        return view('auth.register');
+    }
+
+    /**
+     * Handle login
+     */
+    public function login(Request $request)
+    {
         $credentials = $request->validate([
-            'email'    => 'required|email',
-            'password' => 'required'
+            'email' => 'required|email',
+            'password' => 'required',
         ]);
 
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
-            return redirect()->intended('/chat');
+            return redirect()->intended('/dashboard')->with('success', 'Login realizado com sucesso!');
         }
 
-        return back()->withErrors(['email' => 'Credenciais inválidas.']);
+        return back()->withErrors([
+            'email' => 'Email ou senha incorretos.',
+        ])->onlyInput('email');
     }
 
-    public function showRegister() {
-        return view('auth.register');
-    }
-
-    public function register(Request $request) {
-        $request->validate([
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:6|confirmed',
+    /**
+     * Handle registration
+     */
+    public function register(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8|confirmed',
         ]);
 
         $user = User::create([
-            'name'     => $request->name,
-            'email'    => $request->email,
-            'password' => Hash::make($request->password),
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
         ]);
 
         Auth::login($user);
 
-        return redirect('/chat');
+        return redirect('/dashboard')->with('success', 'Conta criada com sucesso!');
     }
 
-    public function logout(Request $request) {
+    /**
+     * Demo login - Login sem criar conta
+     * Cria um usuário temporário para teste
+     */
+    public function demoLogin(Request $request)
+    {
+        // Crie um usuário demo ou use um existente
+        $demoUser = User::firstOrCreate(
+            ['email' => 'demo@valeia.local'],
+            [
+                'name' => 'Usuário Demo',
+                'password' => Hash::make('demo123456'),
+            ]
+        );
+
+        Auth::login($demoUser, remember: true);
+        $request->session()->regenerate();
+
+        return redirect()->intended('/dashboard')->with('success', 'Bem-vindo ao Vale IA (Modo Demo)!');
+    }
+
+    /**
+     * Handle logout
+     */
+    public function logout(Request $request)
+    {
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect('/login');
+        return redirect('/');
     }
 }

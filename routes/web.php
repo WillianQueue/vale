@@ -1,32 +1,37 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\ChatController;
-use App\Http\Controllers\FileController;
+use Illuminate\Support\Facades\Route;
 
+// Página inicial (sem login) - HOME com CHAT
 Route::get('/', function () {
-    return redirect()->route('login');
-});
+    return view('home');
+})->name('home');
 
-// Autenticação (Apenas Convidados)
+// Rotas públicas (sem login)
 Route::middleware('guest')->group(function () {
+    // Autenticação
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/login', [AuthController::class, 'login'])->name('login.post');
+    
     Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
-    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/register', [AuthController::class, 'register'])->name('register.post');
+    
+    // Demo login (testar sem criar conta)
+    Route::post('/demo-login', [AuthController::class, 'demoLogin'])->name('demo.login');
 });
 
-// Rotas Protegidas (Apenas Usuários Logados)
+// Rotas protegidas (requer login)
 Route::middleware('auth')->group(function () {
-    Route::get('/chat', [ChatController::class, 'index'])->name('chat');
-    Route::post('/chat/enviar', [ChatController::class, 'enviar'])->name('chat.enviar');
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
-
-    // Rotas do Módulo do Administrador (Apenas Admin)
-    Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
-        Route::get('/files', [FileController::class, 'index'])->name('files.index');
-        Route::post('/files/upload', [FileController::class, 'upload'])->name('files.upload');
-        Route::delete('/files/{nome}', [FileController::class, 'deletar'])->name('files.deletar');
-    });
+    
+    // Chat
+    Route::get('/chat', function () {
+        return view('chat');
+    })->name('chat');
+    
+    // Dashboard (redireciona para chat)
+    Route::get('/dashboard', function () {
+        return redirect('/chat');
+    })->name('dashboard');
 });

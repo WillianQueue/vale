@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vale IA Chat</title>
+    <title>Vale IA - Chat</title>
     <style>
         * {
             margin: 0;
@@ -50,14 +50,7 @@
             align-items: center;
         }
 
-        .user-info {
-            font-size: 13px;
-            color: #666;
-            padding-right: 12px;
-            border-right: 1px solid #e5e5e5;
-        }
-
-        .btn-logout {
+        .btn-header {
             padding: 8px 14px;
             border: 1px solid #d1d5db;
             background: white;
@@ -67,11 +60,22 @@
             cursor: pointer;
             transition: all 0.2s;
             color: #333;
+            text-decoration: none;
         }
 
-        .btn-logout:hover {
+        .btn-header:hover {
             background: #f9f9f9;
             border-color: #ccc;
+        }
+
+        .btn-header-primary {
+            background: linear-gradient(135deg, #16302a 0%, #0f1d18 100%);
+            color: white;
+            border: none;
+        }
+
+        .btn-header-primary:hover {
+            opacity: 0.9;
         }
 
         /* Main Layout */
@@ -424,11 +428,8 @@
     <div class="header">
         <div class="logo">Vale IA</div>
         <div class="header-actions">
-            <div class="user-info">{{ Auth::user()->name }}</div>
-            <form action="{{ route('logout') }}" method="POST" style="display: inline;">
-                @csrf
-                <button type="submit" class="btn-logout">Sair</button>
-            </form>
+            <a href="{{ route('login') }}" class="btn-header">Entrar</a>
+            <a href="{{ route('register') }}" class="btn-header btn-header-primary">Cadastrar</a>
         </div>
     </div>
 
@@ -573,7 +574,7 @@
                     return value;
                 }
             }
-            return 'Ótima pergunta! Estou processando sua pergunta. Em breve terei uma resposta mais detalhada para você.';
+            return 'Ótima pergunta! Para respostas mais detalhadas sobre esse tema, crie uma conta Vale IA para acesso aos recursos completos com IA avançada.';
         }
 
         function addToHistory(message) {
