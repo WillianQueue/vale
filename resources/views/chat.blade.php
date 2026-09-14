@@ -4,13 +4,37 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Vale IA Chat</title>
+    <title>Vale IA</title>
 
     <style>
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
+        }
+
+        :root {
+            --bg: #f4f8f5;
+            --surface: #fff;
+            --surface-soft: #eaf2ec;
+            --border: #d3e2da;
+            --ink: #0f1d18;
+            --muted: #61776b;
+            --accent: #4a7658;
+            --accent-hover: #3c6a54;
+            --sidebar: #0f1d18;
+            --user: #0f1d18;
+        }
+
+        body.dark {
+            --bg: #0f1d18;
+            --surface: #162821;
+            --surface-soft: #1e352b;
+            --border: #294637;
+            --ink: #e4ede7;
+            --muted: #a5bdb0;
+            --sidebar: #09120e;
+            --user: #244534;
         }
 
         html,
@@ -20,501 +44,915 @@
         }
 
         body {
-            display: flex;
-            flex-direction: column;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            color: #333;
-            background: #fff;
+            overflow: hidden;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: Arial, sans-serif;
         }
 
-        .header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            height: 56px;
-            padding: 12px 20px;
-            border-bottom: 1px solid #e5e5e5;
+        button,
+        textarea {
+            font: inherit;
         }
 
-        .logo {
-            color: #16302a;
-            font-size: 18px;
-            font-weight: 700;
-        }
-
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .user-info {
-            padding-right: 12px;
-            border-right: 1px solid #e5e5e5;
-            color: #666;
-            font-size: 13px;
-        }
-
-        .btn-logout,
-        .btn-new-chat,
-        .btn-send {
-            border-radius: 6px;
+        button {
+            border: 0;
             cursor: pointer;
-            font-weight: 600;
         }
 
-        .btn-logout {
-            padding: 8px 14px;
-            border: 1px solid #d1d5db;
-            background: #fff;
-            color: #333;
+        .app,
+        .main {
+            width: 100%;
+            height: 100vh;
         }
 
-        .btn-logout:hover,
-        .btn-new-chat:hover {
-            background: #f9f9f9;
-        }
-
-        .main-container {
+        .app {
             display: flex;
-            flex: 1;
-            min-height: 0;
         }
 
         .sidebar {
+            position: fixed;
+            z-index: 20;
+            inset: 0 auto 0 0;
             display: flex;
             flex-direction: column;
-            width: 260px;
-            padding: 12px;
-            border-right: 1px solid #e5e5e5;
+            width: 270px;
+            padding: 16px 12px;
+            background: var(--sidebar);
+            transform: translateX(-100%);
+            transition: transform .2s ease;
         }
 
-        .btn-new-chat {
+        .sidebar.open {
+            transform: translateX(0);
+        }
+
+        .backdrop {
+            position: fixed;
+            z-index: 15;
+            inset: 0;
+            display: none;
+            background: rgba(0, 0, 0, .4);
+        }
+
+        .backdrop.open {
+            display: block;
+        }
+
+        .sidebar-header,
+        .topbar,
+        .topbar-left,
+        .topbar-right,
+        .brand,
+        .sidebar-footer {
+            display: flex;
+            align-items: center;
+        }
+
+        .sidebar-header,
+        .topbar {
+            justify-content: space-between;
+        }
+
+        .sidebar-header {
+            padding-bottom: 20px;
+        }
+
+        .brand {
+            gap: 8px;
+            color: #e8e6e0;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .brand span {
+            color: var(--accent);
+        }
+
+        .icon-button,
+        .menu-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            background: transparent;
+            color: #8aab99;
+            font-size: 20px;
+        }
+
+        .icon-button:hover,
+        .menu-button:hover {
+            background: rgba(255, 255, 255, .08);
+        }
+
+        .new-chat {
             width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #d1d5db;
-            background: #fff;
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, .12);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, .06);
+            color: #e8e6e0;
+            text-align: left;
         }
 
-        .chat-history {
+        .new-chat:hover {
+            background: rgba(255, 255, 255, .11);
+        }
+
+        .history {
             flex: 1;
             overflow-y: auto;
-            margin-top: 16px;
+            margin-top: 22px;
+        }
+
+        .history-title {
+            padding: 0 8px 8px;
+            color: #8aab99;
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: .08em;
+            text-transform: uppercase;
         }
 
         .history-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            width: 100%;
+            margin-bottom: 3px;
+            border-radius: 7px;
+            background: transparent;
+        }
+
+        .history-item:hover {
+            background: rgba(255, 255, 255, .08);
+        }
+
+        .history-question {
+            flex: 1;
             overflow: hidden;
-            padding: 10px 12px;
-            margin-bottom: 4px;
-            border-radius: 6px;
-            color: #666;
+            padding: 9px 6px 9px 10px;
+            border: 0;
+            background: transparent;
+            color: #b5b3ac;
             cursor: pointer;
+            font-size: 13px;
+            text-align: left;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .history-question:hover {
+            color: #fff;
+        }
+
+        .delete-chat {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            margin-right: 4px;
+            border-radius: 5px;
+            background: transparent;
+            color: #8aab99;
+            font-size: 18px;
+            opacity: 0;
+        }
+
+        .history-item:hover .delete-chat {
+            opacity: 1;
+        }
+
+        .delete-chat:hover {
+            background: rgba(200, 80, 60, .3);
+            color: #ffb4a3;
+        }
+
+        .sidebar-footer {
+            gap: 9px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(255, 255, 255, .08);
+        }
+
+        .avatar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: #fff;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .user-name {
+            overflow: hidden;
+            color: #e8e6e0;
             font-size: 13px;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
 
-        .history-item:hover {
-            background: #f3f4f6;
-            color: #333;
-        }
-
-        .sidebar-footer {
-            padding-top: 12px;
-            border-top: 1px solid #e5e5e5;
-            color: #999;
-            font-size: 12px;
-            text-align: center;
-        }
-
-        .chat-area {
+        .main {
             display: flex;
-            flex: 1;
             flex-direction: column;
             min-width: 0;
+            background: var(--bg);
         }
 
-        .chat-messages {
-            display: flex;
-            flex: 1;
-            flex-direction: column;
-            gap: 16px;
-            overflow-y: auto;
-            padding: 20px;
+        .topbar {
+            min-height: 58px;
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border);
         }
 
-        .empty-state {
-            display: flex;
-            flex: 1;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 40px 20px;
-            text-align: center;
+        .topbar-left,
+        .topbar-right {
+            gap: 10px;
         }
 
-        .empty-icon {
-            margin-bottom: 20px;
-            font-size: 64px;
+        .menu-button {
+            color: var(--muted);
         }
 
-        .empty-title {
-            margin-bottom: 8px;
-            color: #0f1d18;
-            font-size: 28px;
+        .model-pill {
+            padding: 6px 13px;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            background: var(--surface);
+            color: var(--muted);
+            font-size: 12px;
         }
 
-        .empty-description {
-            max-width: 400px;
-            color: #666;
-            font-size: 16px;
-        }
-
-        .quick-prompts {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(150px, 1fr));
-            gap: 12px;
-            max-width: 500px;
-            margin-top: 28px;
-        }
-
-        .quick-prompt {
-            padding: 14px 12px;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            background: #fff;
-            cursor: pointer;
+        .topbar-link {
+            padding: 8px 12px;
+            border-radius: 7px;
+            background: transparent;
+            color: var(--muted);
             font-size: 13px;
-            text-align: center;
+            text-decoration: none;
         }
 
-        .quick-prompt:hover {
-            border-color: #5c8a6c;
-            color: #5c8a6c;
+        .topbar-link:hover {
+            background: var(--surface);
+            color: var(--ink);
+        }
+
+        .topbar form {
+            display: inline;
+        }
+
+        .chat-scroll {
+            display: flex;
+            flex: 1;
+            justify-content: center;
+            overflow-y: auto;
+            padding: 0 20px 24px;
+        }
+
+        .chat-inner {
+            width: 100%;
+            max-width: 700px;
+        }
+
+        .greeting {
+            padding: 42px 4px 24px;
+        }
+
+        .greeting-label {
+            margin-bottom: 10px;
+            color: var(--accent);
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+
+        .greeting h1 {
+            margin-bottom: 10px;
+            font-size: 25px;
+            line-height: 1.3;
+        }
+
+        .greeting p {
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .suggestions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 9px;
+            margin-top: 25px;
+        }
+
+        .suggestion {
+            padding: 14px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--surface);
+            color: var(--ink);
+            text-align: left;
+        }
+
+        .suggestion:hover {
+            border-color: #9ec4ae;
+            box-shadow: 0 3px 12px rgba(0, 0, 0, .06);
+        }
+
+        .suggestion strong,
+        .suggestion span {
+            display: block;
+        }
+
+        .suggestion strong {
+            margin-bottom: 4px;
+            font-size: 13px;
+        }
+
+        .suggestion span {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .messages {
+            display: flex;
+            flex-direction: column;
         }
 
         .message {
             display: flex;
             gap: 12px;
-            max-width: 800px;
-            animation: slideIn .3s ease-out;
+            padding: 17px 0;
+        }
+
+        .message + .message {
+            border-top: 1px solid var(--border);
         }
 
         .message.user {
-            align-self: flex-end;
             flex-direction: row-reverse;
         }
 
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(8px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .message-avatar {
+        .message-icon {
             display: flex;
-            flex: 0 0 32px;
             align-items: center;
             justify-content: center;
-            width: 32px;
-            height: 32px;
-            border-radius: 6px;
-            background: #e5e7eb;
-        }
-
-        .message.assistant .message-avatar {
-            background: linear-gradient(135deg, #16302a, #5c8a6c);
+            width: 29px;
+            height: 29px;
+            flex-shrink: 0;
+            border-radius: 8px;
+            background: var(--ink);
             color: #fff;
         }
 
+        .message.user .message-icon {
+            background: var(--accent);
+        }
+
         .message-content {
-            max-width: 650px;
-            padding: 12px 16px;
-            border-radius: 8px;
-            line-height: 1.6;
+            max-width: 88%;
+            color: var(--ink);
+            font-size: 14px;
+            line-height: 1.65;
             white-space: pre-wrap;
             word-break: break-word;
         }
 
         .message.user .message-content {
-            background: linear-gradient(135deg, #16302a, #0f1d18);
+            max-width: 78%;
+            padding: 10px 14px;
+            border-radius: 14px 14px 4px 14px;
+            background: var(--user);
             color: #fff;
         }
 
-        .message.assistant .message-content {
-            background: #f3f4f6;
-            color: #333;
+        .typing {
+            display: inline-flex;
+            gap: 4px;
+            padding: 5px 2px;
+        }
+
+        .typing span {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--muted);
+            animation: blink 1.4s infinite ease-in-out both;
+        }
+
+        .typing span:nth-child(1) {
+            animation-delay: -.32s;
+        }
+
+        .typing span:nth-child(2) {
+            animation-delay: -.16s;
+        }
+
+        @keyframes blink {
+            0%, 80%, 100% {
+                opacity: .4;
+                transform: scale(0);
+            }
+
+            40% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .error {
+            display: none;
+            width: calc(100% - 40px);
+            max-width: 700px;
+            margin: 0 auto 10px;
+            padding: 10px;
+            border-radius: 8px;
+            background: #fff0ed;
+            color: #8f2d20;
+            font-size: 13px;
+        }
+
+        .error.visible {
+            display: block;
         }
 
         .input-area {
-            padding: 16px 20px;
-            border-top: 1px solid #e5e5e5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0 20px 8px;
         }
 
-        .input-wrapper {
+        .input-wrap {
             display: flex;
+            align-items: flex-end;
             gap: 8px;
             width: 100%;
-            max-width: 900px;
-            margin: 0 auto;
+            max-width: 700px;
+            padding: 10px 10px 10px 16px;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: var(--surface);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, .06);
         }
 
-        .input-field {
+        .input-wrap:focus-within {
+            border-color: #9ec4ae;
+        }
+
+        textarea {
             flex: 1;
-            min-height: 44px;
-            max-height: 200px;
-            padding: 12px 16px;
+            min-height: 28px;
+            max-height: 140px;
             resize: none;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            outline: none;
-            font-family: inherit;
-            font-size: 14px;
-        }
-
-        .input-field:focus {
-            border-color: #5c8a6c;
-            box-shadow: 0 0 0 3px rgba(92, 138, 108, .1);
-        }
-
-        .btn-send {
-            height: 44px;
-            padding: 0 20px;
             border: 0;
-            background: linear-gradient(135deg, #16302a, #0f1d18);
-            color: #fff;
-        }
-
-        .btn-send:disabled {
-            cursor: not-allowed;
-            opacity: .5;
-        }
-
-        .error-message {
-            padding: 8px 20px;
-            color: #991b1b;
+            outline: 0;
+            background: transparent;
+            color: var(--ink);
             font-size: 14px;
+            line-height: 1.55;
+        }
+
+        textarea::placeholder {
+            color: var(--muted);
+        }
+
+        .send-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 35px;
+            height: 35px;
+            border-radius: 9px;
+            background: var(--accent);
+            color: #fff;
+            font-size: 20px;
+        }
+
+        .send-button:hover:not(:disabled) {
+            background: var(--accent-hover);
+        }
+
+        .send-button:disabled {
+            cursor: not-allowed;
+            background: var(--border);
+        }
+
+        .hint {
+            padding: 8px;
+            color: var(--muted);
+            font-size: 11px;
             text-align: center;
         }
 
-        @media (max-width: 768px) {
-            .sidebar {
-                display: none;
+        .modal {
+            position: fixed;
+            z-index: 50;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, .4);
+        }
+
+        .modal.open {
+            display: flex;
+        }
+
+        .modal-card {
+            width: 90%;
+            max-width: 380px;
+            padding: 24px;
+            border-radius: 16px;
+            background: var(--surface);
+            color: var(--ink);
+        }
+
+        .modal-card h2 {
+            margin-bottom: 8px;
+            font-size: 18px;
+        }
+
+        .modal-card p {
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .modal-close {
+            display: block;
+            margin: 20px 0 0 auto;
+            padding: 9px 16px;
+            border-radius: 7px;
+            background: var(--ink);
+            color: var(--bg);
+        }
+
+        .theme-option {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 18px;
+            color: var(--ink);
+            font-size: 14px;
+        }
+
+        @media (max-width: 640px) {
+            .topbar {
+                padding: 10px 14px;
             }
 
-            .message {
-                max-width: 100%;
+            .chat-scroll,
+            .input-area {
+                padding-right: 14px;
+                padding-left: 14px;
             }
 
-            .quick-prompts {
+            .suggestions {
                 grid-template-columns: 1fr;
             }
 
-            .chat-messages {
-                padding: 12px 16px;
+            .topbar-link {
+                display: none;
             }
 
-            .input-area {
-                padding: 12px 16px;
+            .error {
+                width: calc(100% - 28px);
+            }
+
+            .message-content,
+            .message.user .message-content {
+                max-width: 88%;
             }
         }
     </style>
 </head>
+
 <body>
-    <header class="header">
-        <div class="logo">Vale IA</div>
+    <div class="app">
+        <div class="backdrop" id="backdrop"></div>
 
-        <div class="header-actions">
-            <div class="user-info">{{ Auth::user()->name }}</div>
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="brand">Va<span>le</span> IA</div>
 
-            <form action="{{ route('logout') }}" method="POST">
-                @csrf
-                <button type="submit" class="btn-logout">Sair</button>
-            </form>
-        </div>
-    </header>
+                <button type="button" class="icon-button" id="closeSidebar">
+                    ×
+                </button>
+            </div>
 
-    <main class="main-container">
-        <aside class="sidebar">
-            <button type="button" class="btn-new-chat" id="newChatBtn">
+            <button type="button" class="new-chat" id="newChat">
                 + Nova conversa
             </button>
 
-            <div class="chat-history" id="chatHistory">
-                @foreach ($historico ?? [] as $chat)
-                    <div
-                        class="history-item"
-                        title="{{ $chat->pergunta }}"
-                        data-question="{{ $chat->pergunta }}"
-                    >
-                        {{ \Illuminate\Support\Str::limit($chat->pergunta, 40) }}
-                    </div>
-                @endforeach
+            <div class="history">
+                <div class="history-title">Conversas recentes</div>
+
+                <div id="historyList">
+                    @auth
+                        @foreach ($historico ?? [] as $chat)
+                            <div
+                                class="history-item"
+                                data-question="{{ $chat->pergunta }}"
+                                data-delete-url="{{ route('chat.destroy', $chat) }}"
+                            >
+                                <button type="button" class="history-question">
+                                    {{ \Illuminate\Support\Str::limit($chat->pergunta, 42) }}
+                                </button>
+
+                                <button
+                                    type="button"
+                                    class="delete-chat"
+                                    title="Excluir conversa"
+                                    aria-label="Excluir conversa"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        @endforeach
+                    @else
+                        <div class="history-question">
+                            Faça login para salvar o histórico.
+                        </div>
+                    @endauth
+                </div>
             </div>
 
             <div class="sidebar-footer">
-                Vale IA v1.0
+                @auth
+                    <div class="avatar">
+                        {{ mb_strtoupper(mb_substr(Auth::user()->name, 0, 2)) }}
+                    </div>
+
+                    <div class="user-name">
+                        {{ Auth::user()->name }}
+                    </div>
+                @else
+                    <div class="avatar">VI</div>
+                    <div class="user-name">Visitante</div>
+                @endauth
             </div>
         </aside>
 
-        <section class="chat-area">
-            <div class="chat-messages" id="chatMessages">
-                <div class="empty-state" id="emptyState">
-                    <div class="empty-icon">🌱</div>
+        <main class="main">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button type="button" class="menu-button" id="openSidebar">
+                        ☰
+                    </button>
 
-                    <h1 class="empty-title">
-                        O que você gostaria de saber?
-                    </h1>
-
-                    <p class="empty-description">
-                        Faça perguntas sobre o Vale do Paraíba e receba respostas inteligentes.
-                    </p>
-
-                    <div class="quick-prompts">
-                        <button
-                            type="button"
-                            class="quick-prompt"
-                            data-question="Quais são as principais cidades do Vale do Paraíba?"
-                        >
-                            🏙️ Principais cidades
-                        </button>
-
-                        <button
-                            type="button"
-                            class="quick-prompt"
-                            data-question="Qual é a economia do Vale do Paraíba?"
-                        >
-                            💼 Economia
-                        </button>
-
-                        <button
-                            type="button"
-                            class="quick-prompt"
-                            data-question="Quais são os pontos turísticos do Vale do Paraíba?"
-                        >
-                            🎭 Turismo
-                        </button>
-
-                        <button
-                            type="button"
-                            class="quick-prompt"
-                            data-question="Fale sobre a história do Vale do Paraíba."
-                        >
-                            📚 História
-                        </button>
+                    <div class="model-pill">
+                        Vale · assistente de pesquisa
                     </div>
                 </div>
-            </div>
 
-            <div id="errorMessage" class="error-message" hidden></div>
+                <div class="topbar-right">
+                    @auth
+                        <form action="{{ route('logout') }}" method="POST">
+                            @csrf
+                            <button type="submit" class="topbar-link">
+                                Sair
+                            </button>
+                        </form>
+                    @else
+                        <a href="{{ route('login') }}" class="topbar-link">Entrar</a>
+                        <a href="{{ route('register') }}" class="topbar-link">Cadastrar</a>
+                    @endauth
 
-            <div class="input-area">
-                <div class="input-wrapper">
-                    <textarea
-                        id="messageInput"
-                        class="input-field"
-                        placeholder="Escreva sua pergunta sobre o Vale do Paraíba..."
-                        rows="1"
-                    ></textarea>
-
-                    <button type="button" id="sendBtn" class="btn-send">
-                        Enviar
+                    <button type="button" class="icon-button" id="openSettings">
+                        ⚙
                     </button>
                 </div>
+            </header>
+
+            <div class="chat-scroll" id="chatScroll">
+                <div class="chat-inner">
+                    <section class="greeting" id="greeting">
+                        <div class="greeting-label">Vale IA</div>
+
+                        <h1>
+                            Em que questão sobre o Vale do Paraíba posso apoiar sua pesquisa?
+                        </h1>
+
+                        <p>
+                            Assistente voltada a pesquisadores, estudantes e interessados na região.
+                        </p>
+
+                        <div class="suggestions">
+                            <button
+                                type="button"
+                                class="suggestion"
+                                data-question="Quais são as principais cidades do Vale do Paraíba?"
+                            >
+                                <strong>Principais cidades</strong>
+                                <span>Conheça os municípios da região</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                class="suggestion"
+                                data-question="Qual é a economia do Vale do Paraíba?"
+                            >
+                                <strong>Economia</strong>
+                                <span>Atividades econômicas da região</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                class="suggestion"
+                                data-question="Quais são os principais pontos turísticos do Vale do Paraíba?"
+                            >
+                                <strong>Turismo</strong>
+                                <span>Locais e atrações turísticas</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                class="suggestion"
+                                data-question="Fale sobre a história do Vale do Paraíba."
+                            >
+                                <strong>História</strong>
+                                <span>Conheça a formação histórica do Vale</span>
+                            </button>
+                        </div>
+                    </section>
+
+                    <section class="messages" id="messages"></section>
+                </div>
             </div>
-        </section>
-    </main>
+
+            <div class="error" id="error"></div>
+
+            <div class="input-area">
+                <div class="input-wrap">
+                    <textarea
+                        id="composer"
+                        rows="1"
+                        placeholder="Pergunte algo sobre o Vale do Paraíba..."
+                    ></textarea>
+
+                    <button
+                        type="button"
+                        class="send-button"
+                        id="sendButton"
+                        disabled
+                    >
+                        ↑
+                    </button>
+                </div>
+
+                <div class="hint">
+                    A Vale pode cometer erros. Confirme os dados antes de citar.
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="modal" id="settingsModal">
+        <div class="modal-card">
+            <h2>Configurações</h2>
+            <p>Altere o tema visual da aplicação.</p>
+
+            <label class="theme-option">
+                <input type="checkbox" id="darkMode">
+                Modo escuro
+            </label>
+
+            <button type="button" class="modal-close" id="closeSettings">
+                Concluído
+            </button>
+        </div>
+    </div>
 
     <script>
-        const input = document.getElementById('messageInput');
-        const sendBtn = document.getElementById('sendBtn');
-        const chatMessages = document.getElementById('chatMessages');
-        const chatHistory = document.getElementById('chatHistory');
-        const errorMessage = document.getElementById('errorMessage');
+        const composer = document.getElementById('composer');
+        const sendButton = document.getElementById('sendButton');
+        const messages = document.getElementById('messages');
+        const greeting = document.getElementById('greeting');
+        const chatScroll = document.getElementById('chatScroll');
+        const historyList = document.getElementById('historyList');
+        const error = document.getElementById('error');
+        const sidebar = document.getElementById('sidebar');
+        const backdrop = document.getElementById('backdrop');
+        const settingsModal = document.getElementById('settingsModal');
+        const darkMode = document.getElementById('darkMode');
         const csrfToken = document
             .querySelector('meta[name="csrf-token"]')
             .getAttribute('content');
 
-        function clearEmptyState() {
-            const emptyState = document.getElementById('emptyState');
-
-            if (emptyState) {
-                emptyState.remove();
-            }
-        }
-
-        function addMessage(text, sender) {
-            clearEmptyState();
-
-            const message = document.createElement('div');
-            message.className = `message ${sender}`;
-
-            const avatar = document.createElement('div');
-            avatar.className = 'message-avatar';
-            avatar.textContent = sender === 'user' ? '👤' : '🤖';
-
-            const content = document.createElement('div');
-            content.className = 'message-content';
-            content.textContent = text;
-
-            message.appendChild(avatar);
-            message.appendChild(content);
-            chatMessages.appendChild(message);
-
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-
-        function addToHistory(question) {
-            const item = document.createElement('div');
-
-            item.className = 'history-item';
-            item.title = question;
-            item.dataset.question = question;
-            item.textContent = question.length > 40
-                ? `${question.substring(0, 40)}...`
-                : question;
-
-            chatHistory.prepend(item);
+        function scrollBottom() {
+            chatScroll.scrollTop = chatScroll.scrollHeight;
         }
 
         function showError(message) {
-            errorMessage.textContent = message;
-            errorMessage.hidden = false;
+            error.textContent = message;
+            error.classList.add('visible');
         }
 
         function hideError() {
-            errorMessage.textContent = '';
-            errorMessage.hidden = true;
+            error.textContent = '';
+            error.classList.remove('visible');
+        }
+
+        function addHistory(question) {
+            const item = document.createElement('div');
+            const questionButton = document.createElement('button');
+
+            item.className = 'history-item';
+            item.dataset.question = question;
+
+            questionButton.type = 'button';
+            questionButton.className = 'history-question';
+            questionButton.textContent = question.length > 42
+                ? `${question.substring(0, 42)}...`
+                : question;
+
+            item.appendChild(questionButton);
+            historyList.prepend(item);
+        }
+
+        function addMessage(role, text) {
+            greeting.style.display = 'none';
+
+            const message = document.createElement('div');
+            const icon = document.createElement('div');
+            const content = document.createElement('div');
+
+            message.className = `message ${role}`;
+            icon.className = 'message-icon';
+            content.className = 'message-content';
+
+            icon.textContent = role === 'user' ? '●' : '✦';
+            content.textContent = text;
+
+            message.appendChild(icon);
+            message.appendChild(content);
+            messages.appendChild(message);
+
+            scrollBottom();
+
+            return content;
+        }
+
+        function addTyping() {
+            greeting.style.display = 'none';
+
+            const message = document.createElement('div');
+            const icon = document.createElement('div');
+            const content = document.createElement('div');
+
+            message.className = 'message assistant';
+            icon.className = 'message-icon';
+            content.className = 'message-content';
+
+            icon.textContent = '✦';
+            content.innerHTML = `
+                <span class="typing">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </span>
+            `;
+
+            message.appendChild(icon);
+            message.appendChild(content);
+            messages.appendChild(message);
+
+            scrollBottom();
+
+            return content;
         }
 
         async function sendMessage(question = null) {
-            const pergunta = (question ?? input.value).trim();
+            const pergunta = (question ?? composer.value).trim();
 
-            if (!pergunta || sendBtn.disabled) {
+            if (!pergunta || sendButton.disabled) {
                 return;
             }
 
             hideError();
-            addMessage(pergunta, 'user');
-            addToHistory(pergunta);
+            addMessage('user', pergunta);
+            addHistory(pergunta);
 
-            input.value = '';
-            input.style.height = '44px';
-            sendBtn.disabled = true;
-            sendBtn.textContent = 'Aguarde...';
+            composer.value = '';
+            composer.style.height = '28px';
+            sendButton.disabled = true;
+
+            const answer = addTyping();
+            answer.textContent = '';
 
             try {
                 const response = await fetch('{{ route('chat.enviar') }}', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Accept': 'application/json',
+                        'Accept': 'application/x-ndjson',
                         'X-CSRF-TOKEN': csrfToken
                     },
                     body: JSON.stringify({
@@ -522,84 +960,242 @@
                     })
                 });
 
-                const data = await response.json();
-
                 if (!response.ok) {
+                    const errorData = await response
+                        .json()
+                        .catch(() => ({}));
+
                     throw new Error(
-                        data.message || 'Não foi possível enviar a pergunta.'
+                        errorData.message ||
+                        'Não foi possível enviar a pergunta.'
                     );
                 }
 
-                if (!data.resposta) {
-                    throw new Error('O servidor retornou uma resposta vazia.');
+                if (!response.body) {
+                    throw new Error(
+                        'O navegador não suporta resposta em streaming.'
+                    );
                 }
 
-                addMessage(data.resposta, 'assistant');
-            } catch (error) {
-                console.error(error);
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let buffer = '';
+
+                while (true) {
+                    const { value, done } = await reader.read();
+
+                    if (done) {
+                        break;
+                    }
+
+                    buffer += decoder.decode(value, {
+                        stream: true
+                    });
+
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+
+                    for (const line of lines) {
+                        if (!line.trim()) {
+                            continue;
+                        }
+
+                        const data = JSON.parse(line);
+
+                        if (data.text) {
+                            answer.textContent += data.text;
+                            scrollBottom();
+                        }
+                    }
+                }
+
+                buffer += decoder.decode();
+
+                if (buffer.trim()) {
+                    const data = JSON.parse(buffer);
+
+                    if (data.text) {
+                        answer.textContent += data.text;
+                    }
+                }
+
+                if (!answer.textContent.trim()) {
+                    throw new Error(
+                        'O modelo não retornou uma resposta.'
+                    );
+                }
+            } catch (exception) {
+                answer.textContent =
+                    'Não foi possível obter uma resposta da Vale IA.';
+
                 showError(
-                    error.message ||
-                    'Não foi possível obter uma resposta da Vale IA.'
+                    exception.message ||
+                    'Verifique se o Ollama está em execução.'
                 );
             } finally {
-                sendBtn.disabled = false;
-                sendBtn.textContent = 'Enviar';
-                input.focus();
+                sendButton.disabled = composer.value.trim() === '';
+                composer.focus();
+            }
+        }
+
+        async function deleteChat(item) {
+            if (!item || !item.dataset.deleteUrl) {
+                return;
+            }
+
+            const question = item.dataset.question;
+
+            if (!confirm(`Excluir esta conversa?\n\n${question}`)) {
+                return;
+            }
+
+            const deleteButton = item.querySelector('.delete-chat');
+            deleteButton.disabled = true;
+
+            try {
+                const response = await fetch(item.dataset.deleteUrl, {
+                    method: 'DELETE',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken
+                    }
+                });
+
+                const data = await response
+                    .json()
+                    .catch(() => ({}));
+
+                if (!response.ok) {
+                    throw new Error(
+                        data.message ||
+                        'Não foi possível excluir a conversa.'
+                    );
+                }
+
+                item.remove();
+            } catch (exception) {
+                deleteButton.disabled = false;
+                showError(
+                    exception.message ||
+                    'Erro ao excluir a conversa.'
+                );
             }
         }
 
         function resetChat() {
-            chatMessages.innerHTML = `
-                <div class="empty-state" id="emptyState">
-                    <div class="empty-icon">🌱</div>
-                    <h1 class="empty-title">O que você gostaria de saber?</h1>
-                    <p class="empty-description">
-                        Faça perguntas sobre o Vale do Paraíba e receba respostas inteligentes.
-                    </p>
-                </div>
-            `;
-
+            messages.innerHTML = '';
+            greeting.style.display = '';
+            composer.value = '';
+            composer.style.height = '28px';
             hideError();
-            input.value = '';
-            input.style.height = '44px';
-            input.focus();
+            composer.focus();
         }
 
-        sendBtn.addEventListener('click', () => sendMessage());
+        document
+            .getElementById('openSidebar')
+            .addEventListener('click', () => {
+                sidebar.classList.add('open');
+                backdrop.classList.add('open');
+            });
 
-        input.addEventListener('keydown', function (event) {
-            if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                sendMessage();
-            }
-        });
+        document
+            .getElementById('closeSidebar')
+            .addEventListener('click', () => {
+                sidebar.classList.remove('open');
+                backdrop.classList.remove('open');
+            });
 
-        input.addEventListener('input', function () {
-            this.style.height = 'auto';
-            this.style.height = `${Math.min(this.scrollHeight, 200)}px`;
+        backdrop.addEventListener('click', () => {
+            sidebar.classList.remove('open');
+            backdrop.classList.remove('open');
         });
 
         document
-            .getElementById('newChatBtn')
+            .getElementById('newChat')
             .addEventListener('click', resetChat);
 
         document
-            .querySelectorAll('.quick-prompt')
+            .querySelectorAll('.suggestion')
             .forEach((button) => {
                 button.addEventListener('click', () => {
                     sendMessage(button.dataset.question);
                 });
             });
 
-        chatHistory.addEventListener('click', function (event) {
-            const item = event.target.closest('.history-item');
+        historyList.addEventListener('click', (event) => {
+            const deleteButton = event.target.closest('.delete-chat');
 
-            if (item) {
-                sendMessage(item.dataset.question);
+            if (deleteButton) {
+                event.stopPropagation();
+                deleteChat(deleteButton.closest('.history-item'));
+                return;
+            }
+
+            const questionButton = event.target.closest(
+                '.history-question'
+            );
+
+            if (questionButton) {
+                const item = questionButton.closest('.history-item');
+
+                if (item && item.dataset.question) {
+                    sendMessage(item.dataset.question);
+                }
             }
         });
 
-        input.focus();
+        sendButton.addEventListener('click', () => {
+            sendMessage();
+        });
+
+        composer.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        });
+
+        composer.addEventListener('input', () => {
+            composer.style.height = 'auto';
+            composer.style.height = `${Math.min(
+                composer.scrollHeight,
+                140
+            )}px`;
+
+            sendButton.disabled = composer.value.trim() === '';
+        });
+
+        document
+            .getElementById('openSettings')
+            .addEventListener('click', () => {
+                settingsModal.classList.add('open');
+            });
+
+        document
+            .getElementById('closeSettings')
+            .addEventListener('click', () => {
+                settingsModal.classList.remove('open');
+            });
+
+        settingsModal.addEventListener('click', (event) => {
+            if (event.target === settingsModal) {
+                settingsModal.classList.remove('open');
+            }
+        });
+
+        darkMode.addEventListener('change', () => {
+            document.body.classList.toggle('dark', darkMode.checked);
+
+            localStorage.setItem(
+                'vale_theme',
+                darkMode.checked ? 'dark' : 'light'
+            );
+        });
+
+        if (localStorage.getItem('vale_theme') === 'dark') {
+            document.body.classList.add('dark');
+            darkMode.checked = true;
+        }
     </script>
 </body>
 </html>

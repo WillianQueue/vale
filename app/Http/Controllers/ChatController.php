@@ -3,138 +3,287 @@
 namespace App\Http\Controllers;
 
 use App\Models\Chat;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\View\View;
+use Smalot\PdfParser\Parser as PdfParser;
 
 class ChatController extends Controller
 {
-    public function index()
+    public function index(): View
     {
-        // Carrega as conversas do usuário autenticado
-        $historico = auth()->user()->chats()->latest()->get();
+        $historico = auth()->check()
+            ? auth()->user()->chats()->latest()->get()
+            : collect();
 
         return view('chat', compact('historico'));
     }
 
-    public function enviar(Request $request)
+    public function enviar(Request $request): Response
     {
         set_time_limit(0);
-        // Eleva o limite de memória para processar PDFs pesados
-ini_set('memory_limit', '512M');
-        $request->validate([
-            'pergunta' => 'required|string|max:1000'
+        ini_set('max_execution_time', '0');
+        ini_set('memory_limit', '512M');
+
+        $validated = $request->validate([
+            'pergunta' => ['required', 'string', 'max:1000'],
         ]);
 
-        $pergunta = trim($request->input('pergunta'));
-        $caminhoPasta = storage_path('app/documentos');
+        $pergunta = trim($validated['pergunta']);
 
-        // 1. Busca contexto nos documentos locais
-        $contexto = $this->carregarContextoDePasta($caminhoPasta, $pergunta);
-        $usouDocumentos = !empty($contexto);
+        $contexto = $this->carregarContextoDePasta(
+            storage_path('app/documentos'),
+            $pergunta
+        );
 
-        // 2. Chama a API do Ollama enviando o prompt atualizado da Vale
-        $resposta = $this->perguntarOllama($pergunta, $contexto);
+        $prompt = $this->montarPrompt($pergunta, $contexto);
 
-        // 3. Salva no banco vinculando ao usuário autenticado
-        $chat = Chat::create([
-            'user_id' => auth()->id(),
-            'pergunta' => $pergunta,
-            'resposta' => $resposta,
-            'fonte' => $usouDocumentos ? 'documentos' : 'conhecimento_geral'
+        try {
+            $ollamaResponse = Http::connectTimeout(10)
+                ->withOptions([
+                    'stream' => true,
+                ])
+                ->timeout(0)
+                ->post('http://localhost:11434/api/generate', [
+                    'model' => 'gemma3:12b',
+                    'prompt' => $prompt,
+                    'stream' => true,
+                ]);
+        } catch (\Throwable $exception) {
+            Log::error('Erro ao conectar ao Ollama.', [
+                'message' => $exception->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'O servidor do Ollama está offline ou inacessível.',
+            ], 503);
+        }
+
+        if (!$ollamaResponse->successful()) {
+            return response()->json([
+                'message' => 'Erro ao comunicar com a API do Ollama.',
+            ], 502);
+        }
+
+        $usuarioId = auth()->id();
+        $fonte = $contexto !== ''
+            ? 'documentos'
+            : 'conhecimento_geral';
+
+        return response()->stream(function () use (
+            $ollamaResponse,
+            $pergunta,
+            $usuarioId,
+            $fonte
+        ): void {
+            $respostaCompleta = '';
+            $buffer = '';
+            $corpo = $ollamaResponse->toPsrResponse()->getBody();
+
+            while (!$corpo->eof()) {
+                $buffer .= $corpo->read(8192);
+                $linhas = explode("\n", $buffer);
+                $buffer = array_pop($linhas) ?? '';
+
+                foreach ($linhas as $linha) {
+                    $linha = trim($linha);
+
+                    if ($linha === '') {
+                        continue;
+                    }
+
+                    $dados = json_decode($linha, true);
+
+                    if (!is_array($dados)) {
+                        continue;
+                    }
+
+                    $trecho = (string) ($dados['response'] ?? '');
+
+                    if ($trecho !== '') {
+                        $respostaCompleta .= $trecho;
+
+                        echo json_encode([
+                            'text' => $trecho,
+                            'done' => false,
+                        ], JSON_UNESCAPED_UNICODE) . "\n";
+
+                        if (ob_get_level() > 0) {
+                            ob_flush();
+                        }
+
+                        flush();
+                    }
+
+                    if (($dados['done'] ?? false) === true) {
+                        break 2;
+                    }
+                }
+            }
+
+            if (trim($buffer) !== '') {
+                $dados = json_decode(trim($buffer), true);
+
+                if (is_array($dados)) {
+                    $trecho = (string) ($dados['response'] ?? '');
+
+                    if ($trecho !== '') {
+                        $respostaCompleta .= $trecho;
+
+                        echo json_encode([
+                            'text' => $trecho,
+                            'done' => false,
+                        ], JSON_UNESCAPED_UNICODE) . "\n";
+                    }
+                }
+            }
+
+            if ($usuarioId !== null && trim($respostaCompleta) !== '') {
+                Chat::create([
+                    'user_id' => $usuarioId,
+                    'pergunta' => $pergunta,
+                    'resposta' => trim($respostaCompleta),
+                    'fonte' => $fonte,
+                ]);
+            }
+
+            echo json_encode([
+                'text' => '',
+                'done' => true,
+            ], JSON_UNESCAPED_UNICODE) . "\n";
+
+            if (ob_get_level() > 0) {
+                ob_flush();
+            }
+
+            flush();
+        }, 200, [
+            'Content-Type' => 'application/x-ndjson; charset=utf-8',
+            'Cache-Control' => 'no-cache, no-store',
+            'X-Accel-Buffering' => 'no',
         ]);
+    }
+
+    public function destroy(Chat $chat): JsonResponse
+    {
+        abort_unless(
+            auth()->check() && $chat->user_id === auth()->id(),
+            403
+        );
+
+        $chat->delete();
 
         return response()->json([
             'status' => 'sucesso',
-            'pergunta' => $chat->pergunta,
-            'resposta' => $chat->resposta,
-            'fonte' => $chat->fonte,
-            'data' => $chat->created_at->format('d/m/Y H:i')
+            'message' => 'Conversa excluída com sucesso.',
         ]);
     }
 
-   private function carregarContextoDePasta(string $caminhoPasta, string $query): string
-{
-    if (!is_dir($caminhoPasta)) {
-        return "";
+    private function montarPrompt(
+        string $pergunta,
+        string $contexto
+    ): string {
+        $prompt = implode("\n", [
+            'Você é a Vale, uma assistente de pesquisa especializada no Vale do Paraíba (SP/RJ/MG).',
+            'Responda sempre em português do Brasil.',
+            'Responda em texto corrido, com parágrafos claros e diretos.',
+            'Não use Markdown, hashtags, negrito ou listas com marcadores.',
+            'Não invente fontes ou informações.',
+        ]);
+
+        if ($contexto !== '') {
+            $prompt .= "\n\nDOCUMENTOS OFICIAIS:\n";
+            $prompt .= $contexto;
+            $prompt .= "\nBaseie a resposta prioritariamente nesses documentos.";
+        }
+
+        return $prompt . "\n\nPERGUNTA:\n" . $pergunta;
     }
 
-    $arquivos = glob($caminhoPasta . "/*.{txt,md,json,pdf}", GLOB_BRACE);
-    if (empty($arquivos)) {
-        return "";
-    }
+    private function carregarContextoDePasta(
+        string $caminhoPasta,
+        string $query
+    ): string {
+        if (!is_dir($caminhoPasta)) {
+            return '';
+        }
 
-    $contextoEncontrado = "";
-    $palavrasChave = array_filter(explode(" ", strtolower($query)), fn($p) => strlen(trim($p)) > 2);
+        $arquivos = glob(
+            $caminhoPasta . '/*.{txt,md,json,pdf}',
+            GLOB_BRACE
+        );
 
-    // Instancia o parser de PDF com tratamento de exceção
-    $pdfParser = class_exists(\Smalot\PdfParser\Parser::class) ? new \Smalot\PdfParser\Parser() : null;
+        if ($arquivos === false || $arquivos === []) {
+            return '';
+        }
 
-    foreach ($arquivos as $arquivo) {
-        $extensao = strtolower(pathinfo($arquivo, PATHINFO_EXTENSION));
-        $conteudo = "";
+        $palavrasChave = array_filter(
+            preg_split('/\s+/', mb_strtolower($query)) ?: [],
+            fn (string $palavra): bool => mb_strlen(trim($palavra)) > 2
+        );
 
-        try {
-            if ($extensao === 'pdf') {
-                if ($pdfParser) {
-                    $pdf = $pdfParser->parseFile($arquivo);
-                    $conteudo = $pdf->getText();
+        $contextoEncontrado = '';
+
+        $pdfParser = class_exists(PdfParser::class)
+            ? new PdfParser()
+            : null;
+
+        foreach ($arquivos as $arquivo) {
+            $extensao = strtolower(
+                pathinfo($arquivo, PATHINFO_EXTENSION)
+            );
+
+            $conteudo = '';
+
+            try {
+                if ($extensao === 'pdf') {
+                    if ($pdfParser === null) {
+                        continue;
+                    }
+
+                    $conteudo = $pdfParser
+                        ->parseFile($arquivo)
+                        ->getText();
+                } else {
+                    $conteudo = file_get_contents($arquivo) ?: '';
                 }
-            } else {
-                $conteudo = file_get_contents($arquivo);
-            }
-        } catch (\Throwable $e) {
-            // Ignora arquivos corrompidos ou PDFs que não puderem ser lidos
-            continue;
-        }
+            } catch (\Throwable $exception) {
+                Log::warning('Não foi possível ler o documento.', [
+                    'arquivo' => $arquivo,
+                    'message' => $exception->getMessage(),
+                ]);
 
-        if (empty($conteudo)) {
-            continue;
-        }
-
-        $conteudoLower = strtolower($conteudo);
-
-        if (empty($palavrasChave)) {
-            $nomeArquivo = basename($arquivo);
-            $contextoEncontrado .= "--- Documento: {$nomeArquivo} ---\n{$conteudo}\n\n";
-            continue;
-        }
-
-        foreach ($palavrasChave as $palavra) {
-            if (str_contains($conteudoLower, trim($palavra))) {
-                $nomeArquivo = basename($arquivo);
-                $contextoEncontrado .= "--- Documento: {$nomeArquivo} ---\n{$conteudo}\n\n";
-                break;
-            }
-        }
-    }
-
-    return $contextoEncontrado;
-}
-
-    private function perguntarOllama(string $prompt, string $contexto): string
-    {
-        $adminDocsContext = $contexto;
-
-        // Montagem do SYSTEM_PROMPT conforme especificado
-        $systemPrompt = 'Você é a Vale, uma assistente de pesquisa especializada no Vale do Paraíba (SP/RJ/MG), priorize utilizar a lingua portugues do Brasil. IMPORTANTE: Responda SEMPRE em texto corrido, parágrafos limpos e diretos. NUNCA utilize marcações de Markdown, títulos com hashtags (###), negritos (**), listas com marcadores ou estruturas complexas. Entregue apenas a informação pura em texto normal.' .
-            ($adminDocsContext ? "\n\nATENÇÃO DE PRIORIDADE MÁXIMA: Você DEVE priorizar e basear suas respostas primariamente nos documentos oficiais carregados pelo administrador listados abaixo. Se a resposta constar nesses arquivos, utilize-os como fonte principal, sempre de as fontes das informacoes utilizadas:\n" . $adminDocsContext : '');
-
-        $systemPrompt .= "\n\nPERGUNTA DO USUÁRIO:\n" . $prompt;
-
-        try {
-            $response = Http::timeout(-1)->post('http://localhost:11434/api/generate', [
-                'model' => 'gemma3:12b',
-                'prompt' => $systemPrompt,
-                'stream' => false
-            ]);
-
-            if ($response->successful()) {
-                return $response->json('response') ?? 'Erro na resposta do modelo.';
+                continue;
             }
 
-            return 'Erro ao comunicar com a API do Ollama.';
-        } catch (\Exception $e) {
-            return 'O servidor do Ollama parece estar offline ou inacessível.';
+            if (trim($conteudo) === '') {
+                continue;
+            }
+
+            $conteudoLower = mb_strtolower($conteudo);
+            $relevante = $palavrasChave === [];
+
+            foreach ($palavrasChave as $palavra) {
+                if (str_contains($conteudoLower, trim($palavra))) {
+                    $relevante = true;
+                    break;
+                }
+            }
+
+            if (!$relevante) {
+                continue;
+            }
+
+            $contextoEncontrado .= sprintf(
+                "--- Documento: %s ---\n%s\n\n",
+                basename($arquivo),
+                mb_substr($conteudo, 0, 12000)
+            );
         }
+
+        return $contextoEncontrado;
     }
 }

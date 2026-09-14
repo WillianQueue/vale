@@ -68,27 +68,6 @@ class AuthController extends Controller
     }
 
     /**
-     * Demo login - Login sem criar conta
-     * Cria um usuário temporário para teste
-     */
-    public function demoLogin(Request $request)
-    {
-        // Crie um usuário demo ou use um existente
-        $demoUser = User::firstOrCreate(
-            ['email' => 'demo@valeia.local'],
-            [
-                'name' => 'Usuário Demo',
-                'password' => Hash::make('demo123456'),
-            ]
-        );
-
-        Auth::login($demoUser, remember: true);
-        $request->session()->regenerate();
-
-        return redirect()->intended('/dashboard')->with('success', 'Bem-vindo ao Vale IA (Modo Demo)!');
-    }
-
-    /**
      * Handle logout
      */
     public function logout(Request $request)
