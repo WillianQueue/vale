@@ -14,15 +14,22 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'is_admin',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+            'is_admin' => 'boolean',
+        ];
+    }
 
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    // ✅ CÓDIGO CORRIGIDO
     public function chats(): HasMany
     {
         return $this->hasMany(Chat::class);

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 
 class FileController extends Controller
 {
@@ -35,12 +36,10 @@ class FileController extends Controller
         return view('admin.files', compact('arquivos'));
     }
 
-    // app/Http/Controllers/FileController.php
-
     public function upload(Request $request)
     {
         $request->validate([
-            'arquivo' => 'required|file|mimes:txt,md,json,pdf|max:10240' // Permite PDF de até 10MB
+            'arquivo' => 'required|file|mimes:txt,md,json,pdf|max:10240'
         ], [
             'arquivo.required' => 'Selecione um arquivo.',
             'arquivo.mimes' => 'Apenas arquivos .txt, .md, .json e .pdf são permitidos.',
@@ -48,11 +47,19 @@ class FileController extends Controller
         ]);
 
         $file = $request->file('arquivo');
-        $nomeOriginal = $file->getClientOriginalName();
+        $extensao = strtolower($file->getClientOriginalExtension());
+        $nomeBase = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME));
+        $nomeBase = $nomeBase !== '' ? $nomeBase : 'documento';
+        $nomeArquivo = sprintf(
+            '%s-%s.%s',
+            $nomeBase,
+            Str::lower(Str::random(8)),
+            $extensao
+        );
 
-        $file->move($this->caminhoPasta, $nomeOriginal);
+        $file->move($this->caminhoPasta, $nomeArquivo);
 
-        return back()->with('sucesso', "Arquivo '{$nomeOriginal}' enviado com sucesso!");
+        return back()->with('sucesso', "Arquivo '{$nomeArquivo}' enviado com sucesso!");
     }
 
     public function deletar($nome)

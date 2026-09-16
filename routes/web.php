@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\FileController;
+use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ChatController;
 use Illuminate\Support\Facades\Route;
 
@@ -42,3 +44,20 @@ Route::middleware('auth')->group(function () {
     Route::delete('/chat/{conversation}', [ChatController::class, 'destroy'])
         ->name('chat.destroy');
 });
+
+Route::middleware(['auth', 'admin'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        Route::get('/arquivos', [FileController::class, 'index'])
+            ->name('files');
+        Route::post('/arquivos', [FileController::class, 'upload'])
+            ->name('files.upload');
+        Route::delete('/arquivos/{nome}', [FileController::class, 'deletar'])
+            ->name('files.deletar');
+
+        Route::get('/contas', [AdminController::class, 'index'])
+            ->name('accounts');
+        Route::patch('/contas/{user}/administrador', [AdminController::class, 'toggleAdmin'])
+            ->name('accounts.toggle-admin');
+    });
