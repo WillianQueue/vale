@@ -60,4 +60,8 @@ Route::middleware(['auth', 'admin'])
             ->name('accounts');
         Route::patch('/contas/{user}/administrador', [AdminController::class, 'toggleAdmin'])
             ->name('accounts.toggle-admin');
+        Route::put('/contas/{user}', [AdminController::class, 'updateAccount'])
+            ->name('accounts.update');
+        Route::delete('/contas/{user}', [AdminController::class, 'deleteAccount'])
+            ->name('accounts.delete');
     });

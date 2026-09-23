@@ -88,12 +88,17 @@
             transform: translateX(0);
         }
 
+        .sidebar.closed {
+            transform: translateX(-100%);
+        }
+
         .backdrop {
             position: fixed;
             z-index: 15;
             inset: 0;
             display: none;
-            background: rgba(0, 0, 0, .4);
+            background: transparent;
+            pointer-events: none;
         }
 
         .backdrop.open {
@@ -828,6 +833,11 @@
             background: var(--surface-soft);
         }
 
+        .history-item.active {
+            background: var(--surface-soft);
+            box-shadow: inset 3px 0 0 var(--accent);
+        }
+
         .history {
             margin-top: 30px;
         }
@@ -891,6 +901,20 @@
 
         .menu-button {
             display: none;
+        }
+
+        .sidebar.closed ~ .main .menu-button {
+            display: flex;
+        }
+
+        @media (min-width: 901px) {
+            .sidebar.closed ~ .main {
+                margin-left: 0;
+            }
+
+            .sidebar.open ~ .main {
+                margin-left: 286px;
+            }
         }
 
         .model-pill {
@@ -1395,6 +1419,17 @@
 
         let currentConversationId = null;
 
+        function markActiveConversation(conversationId) {
+            historyList
+                .querySelectorAll('.history-item')
+                .forEach((item) => {
+                    item.classList.toggle(
+                        'active',
+                        item.dataset.conversationId === String(conversationId)
+                    );
+                });
+        }
+
         function addHistory(question, answer, conversationId) {
             const item = document.createElement('div');
             const questionButton = document.createElement('button');
@@ -1419,6 +1454,7 @@
             item.appendChild(questionButton);
             item.appendChild(deleteButton);
             historyList.prepend(item);
+            markActiveConversation(conversationId);
         }
 
         async function openConversation(item) {
@@ -1426,6 +1462,7 @@
             hideError();
             greeting.style.display = 'none';
             currentConversationId = item.dataset.conversationId || null;
+            markActiveConversation(currentConversationId);
 
             try {
                 const response = await fetch(item.dataset.showUrl, {
@@ -1458,9 +1495,6 @@
             composer.style.height = '28px';
             sendButton.disabled = true;
             scrollBottom();
-
-            sidebar.classList.remove('open');
-            backdrop.classList.remove('open');
         }
 
         function addMessage(role, text) {
@@ -1678,6 +1712,7 @@
                         respostaCompleta,
                         currentConversationId
                     );
+                    markActiveConversation(currentConversationId);
                 }
             } catch (exception) {
                 answer.textContent =
@@ -1747,29 +1782,39 @@
             messages.innerHTML = '';
             greeting.style.display = '';
             currentConversationId = null;
+            markActiveConversation(null);
             composer.value = '';
             composer.style.height = '28px';
             hideError();
             composer.focus();
         }
 
+        function openSidebar() {
+            sidebar.classList.remove('closed');
+            sidebar.classList.add('open');
+            backdrop.classList.add('open');
+        }
+
+        function closeSidebar() {
+            sidebar.classList.remove('open');
+            sidebar.classList.add('closed');
+            backdrop.classList.remove('open');
+        }
+
         document
             .getElementById('openSidebar')
             .addEventListener('click', () => {
-                sidebar.classList.add('open');
-                backdrop.classList.add('open');
+                openSidebar();
             });
 
         document
             .getElementById('closeSidebar')
             .addEventListener('click', () => {
-                sidebar.classList.remove('open');
-                backdrop.classList.remove('open');
+                closeSidebar();
             });
 
         backdrop.addEventListener('click', () => {
-            sidebar.classList.remove('open');
-            backdrop.classList.remove('open');
+            closeSidebar();
         });
 
         document
