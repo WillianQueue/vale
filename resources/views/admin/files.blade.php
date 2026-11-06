@@ -304,7 +304,7 @@
 
             <div class="topbar-actions">
                 <a href="{{ route('admin.accounts') }}" class="topbar-link">Gerenciar contas</a>
-                <a href="{{ route('chat') }}" class="back-button">← Voltar ao chat</a>
+                <a href="{{ route('chat') }}" class="back-button">Voltar ao chat</a>
             </div>
         </header>
 

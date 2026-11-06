@@ -41,14 +41,12 @@ class ChatController extends Controller
         $validated = $request->validate([
             'pergunta' => ['required', 'string', 'max:1000'],
             'conversation_id' => ['nullable', 'integer'],
+            'historico' => ['nullable', 'array'],
+            'historico.*.question' => ['required', 'string'],
+            'historico.*.answer' => ['required', 'string'],
         ]);
 
         $pergunta = trim($validated['pergunta']);
-        $contexto = $this->carregarContextoDePasta(
-            storage_path('app/documentos'),
-            $pergunta
-        );
-        $prompt = $this->montarPrompt($pergunta, $contexto);
         $usuarioId = Auth::id();
         $conversa = null;
 
@@ -58,6 +56,16 @@ class ChatController extends Controller
                 ->findOrFail($validated['conversation_id']);
         }
 
+        $historico = $this->montarHistorico(
+            $conversa,
+            $usuarioId === null ? ($validated['historico'] ?? []) : []
+        );
+        $contexto = $this->carregarContextoDePasta(
+            storage_path('app/documentos'),
+            $pergunta
+        );
+        $prompt = $this->montarPrompt($pergunta, $contexto, $historico);
+
         try {
             $ollamaResponse = Http::connectTimeout(10)
                 ->withOptions([
@@ -65,7 +73,7 @@ class ChatController extends Controller
                 ])
                 ->timeout(300)
                 ->post('http://127.0.0.1:11434/api/generate', [
-                    'model' => 'gemma3:12b',
+                    'model' => 'qwen3:8b',
                     'prompt' => $prompt,
                     'stream' => true,
                 ]);
@@ -234,15 +242,22 @@ class ChatController extends Controller
 
     private function montarPrompt(
         string $pergunta,
-        string $contexto
+        string $contexto,
+        string $historico
     ): string {
         $prompt = implode("\n", [
-            'Você é a Vale, uma assistente de pesquisa especializada no Vale do Paraíba (SP/RJ/MG).',
+            'Você é a Vale, uma assistente de pesquisa especializada no Vale do Paraíba.',
             'Responda sempre em português do Brasil.',
             'Responda em texto corrido, com parágrafos claros e diretos.',
             'Não use Markdown, hashtags, negrito ou listas com marcadores.',
             'Não invente fontes ou informações.',
+            'Use o histórico da conversa para responder perguntas sobre mensagens anteriores.',
         ]);
+
+        if ($historico !== '') {
+            $prompt .= "\n\nHISTÓRICO DA CONVERSA (do mais antigo ao mais recente):\n";
+            $prompt .= $historico;
+        }
 
         if ($contexto !== '') {
             $prompt .= "\n\nDOCUMENTOS OFICIAIS:\n";
@@ -251,6 +266,30 @@ class ChatController extends Controller
         }
 
         return $prompt . "\n\nPERGUNTA:\n" . $pergunta;
+    }
+
+    private function montarHistorico(
+        ?Conversation $conversa,
+        array $historicoEnviado
+    ): string {
+        $mensagens = $conversa !== null
+            ? $conversa->chats()
+                ->oldest('created_at')
+                ->oldest('id')
+                ->get(['pergunta', 'resposta'])
+                ->map(fn (Chat $chat): array => [
+                    'question' => $chat->pergunta,
+                    'answer' => $chat->resposta,
+                ])
+            : collect($historicoEnviado);
+
+        return $mensagens
+            ->map(fn (array $mensagem): string => sprintf(
+                "Usuário: %s\nVale: %s",
+                $mensagem['question'],
+                $mensagem['answer']
+            ))
+            ->implode("\n\n");
     }
 
     private function carregarContextoDePasta(

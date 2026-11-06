@@ -58,6 +58,8 @@ Route::middleware(['auth', 'admin'])
 
         Route::get('/contas', [AdminController::class, 'index'])
             ->name('accounts');
+        Route::get('/contas/{user}/editar', [AdminController::class, 'editAccount'])
+            ->name('accounts.edit');
         Route::patch('/contas/{user}/administrador', [AdminController::class, 'toggleAdmin'])
             ->name('accounts.toggle-admin');
         Route::put('/contas/{user}', [AdminController::class, 'updateAccount'])

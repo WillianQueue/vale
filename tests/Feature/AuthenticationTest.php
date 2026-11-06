@@ -42,5 +42,9 @@ class AuthenticationTest extends TestCase
         $response->assertRedirect(route('login'));
         $response->assertSessionHasErrors('email');
         $this->assertGuest();
+
+        $this->get(route('login'))
+            ->assertOk()
+            ->assertSee('Email ou senha incorretos.');
     }
 }

@@ -18,6 +18,13 @@ class AdminController extends Controller
         ]);
     }
 
+    public function editAccount(User $user): View
+    {
+        return view('admin.account-edit', [
+            'usuario' => $user,
+        ]);
+    }
+
     public function toggleAdmin(Request $request, User $user): RedirectResponse
     {
         if ($request->user()->is($user)) {
@@ -60,7 +67,7 @@ class AdminController extends Controller
 
         $user->save();
 
-        return back()->with(
+        return redirect()->route('admin.accounts')->with(
             'sucesso',
             "A conta de {$user->name} foi atualizada com sucesso."
         );

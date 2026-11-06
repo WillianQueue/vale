@@ -56,6 +56,28 @@ class AdminAccountsTest extends TestCase
         ]);
     }
 
+    public function test_administrator_can_open_a_full_account_edit_screen(): void
+    {
+        $admin = $this->createAdmin();
+        $user = User::factory()->create([
+            'name' => 'Conta para editar',
+            'email' => 'editar@example.com',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.accounts'))
+            ->assertOk()
+            ->assertSee(route('admin.accounts.edit', $user))
+            ->assertSee('Editar');
+
+        $this->actingAs($admin)
+            ->get(route('admin.accounts.edit', $user))
+            ->assertOk()
+            ->assertSee('Editar conta')
+            ->assertSee('Conta para editar')
+            ->assertSee('Salvar alterações');
+    }
+
     public function test_administrator_cannot_delete_the_own_account(): void
     {
         $admin = $this->createAdmin();

@@ -1167,7 +1167,10 @@
     </style>
 </head>
 
-<body>
+<body
+    data-chat-send-url="{{ route('chat.enviar') }}"
+    data-authenticated="{{ auth()->check() ? '1' : '0' }}"
+>
     <div class="app">
         <div class="backdrop" id="backdrop"></div>
 
@@ -1399,6 +1402,8 @@
         const backdrop = document.getElementById('backdrop');
         const settingsModal = document.getElementById('settingsModal');
         const darkMode = document.getElementById('darkMode');
+        const chatSendUrl = document.body.dataset.chatSendUrl;
+        const usuarioAutenticado = document.body.dataset.authenticated === '1';
         const csrfToken = document
             .querySelector('meta[name="csrf-token"]')
             .getAttribute('content');
@@ -1418,6 +1423,7 @@
         }
 
         let currentConversationId = null;
+        let historicoDaConversa = [];
 
         function markActiveConversation(conversationId) {
             historyList
@@ -1459,6 +1465,7 @@
 
         async function openConversation(item) {
             messages.innerHTML = '';
+            historicoDaConversa = [];
             hideError();
             greeting.style.display = 'none';
             currentConversationId = item.dataset.conversationId || null;
@@ -1484,6 +1491,11 @@
                     addMessage('user', message.question);
                     addMessage('assistant', message.answer);
                 });
+                historicoDaConversa = data.messages
+                    .map((message) => ({
+                        question: message.question,
+                        answer: message.answer
+                    }));
             } catch (exception) {
                 showError(
                     exception.message ||
@@ -1596,21 +1608,19 @@
             }
 
             try {
-                const response = await fetch(
-                    @json(route('chat.enviar')),
-                    {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': csrfToken
-                        },
-                        body: JSON.stringify({
-                            pergunta: pergunta,
-                            conversation_id: currentConversationId
-                        })
-                    }
-                );
+                const response = await fetch(chatSendUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken
+                    },
+                    body: JSON.stringify({
+                        pergunta: pergunta,
+                        conversation_id: currentConversationId,
+                        historico: usuarioAutenticado ? [] : historicoDaConversa
+                    })
+                });
 
                 if (!response.ok) {
                     const errorData = await response
@@ -1705,6 +1715,11 @@
                     await aguardar(20);
                 }
 
+                historicoDaConversa.push({
+                    question: pergunta,
+                    answer: respostaCompleta
+                });
+
                 if (!currentConversationId && conversationIdRecebida) {
                     currentConversationId = conversationIdRecebida;
                     addHistory(
@@ -1782,6 +1797,7 @@
             messages.innerHTML = '';
             greeting.style.display = '';
             currentConversationId = null;
+            historicoDaConversa = [];
             markActiveConversation(null);
             composer.value = '';
             composer.style.height = '28px';

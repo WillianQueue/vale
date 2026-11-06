@@ -228,172 +228,16 @@
             background: #fff0ed;
         }
 
-        .account-actions {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            white-space: nowrap;
-        }
-
-        .account-actions form {
-            display: flex;
-            margin: 0;
-        }
-
-        .account-menu {
-            position: relative;
-        }
-
-        .account-menu summary {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 34px;
-            padding: 7px 12px;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            background: var(--surface);
-            color: var(--ink);
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: 600;
-            list-style: none;
-        }
-
-        .account-menu summary::-webkit-details-marker {
-            display: none;
-        }
-
-        .account-menu summary::after {
-            margin-left: 7px;
-            content: '▾';
-            color: var(--muted);
-            font-size: 11px;
-        }
-
-        .account-menu[open] summary {
+        .edit-button {
             border-color: var(--accent);
-        }
-
-        .account-menu-panel {
-            position: absolute;
-            z-index: 5;
-            top: calc(100% + 8px);
-            right: 0;
-            width: 270px;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            padding: 14px;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            background: var(--surface);
-            box-shadow: 0 12px 30px rgba(15, 29, 24, .14);
-        }
-
-        .account-menu-panel form {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            margin: 0;
-        }
-
-        .edit-account {
-            border: 0;
-        }
-
-        .edit-account summary {
-            display: flex;
-            align-items: center;
-            min-height: 34px;
-            padding: 7px 12px;
-            border-radius: 8px;
-            color: var(--ink);
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 600;
-            list-style: none;
-            transition: background .15s, color .15s;
-        }
-
-        .edit-account summary::-webkit-details-marker {
-            display: none;
-        }
-
-        .edit-account summary:hover {
-            background: var(--surface-soft);
-        }
-
-        .edit-account-form {
-            margin: 8px 0 4px;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 12px;
-            background: var(--surface);
-        }
-
-        .account-menu-panel label {
-            color: var(--muted);
-            font-size: 11px;
-            font-weight: 600;
-        }
-
-        .account-menu-panel input {
-            width: 100%;
-            padding: 8px 9px;
-            border: 1px solid var(--border);
-            border-radius: 7px;
-            color: var(--ink);
-            font: 13px Arial, sans-serif;
-        }
-
-        .account-menu-panel input:focus {
-            outline: 2px solid rgba(92, 138, 108, .22);
-            border-color: var(--accent);
-        }
-
-        .menu-separator {
-            height: 1px;
-            margin: 12px 0;
-            background: var(--border);
-        }
-
-        .menu-action {
-            width: 100%;
-        }
-
-        .menu-action.delete {
-            justify-content: center;
-            padding-right: 12px;
-            padding-left: 12px;
-        }
-
-        .account-actions .delete {
-            width: 100%;
-            border-color: #a33d32;
-            background: #a33d32;
+            background: var(--accent);
             color: #fff;
+            text-decoration: none;
         }
 
-        .account-actions .delete:hover {
-            border-color: #8f2d20;
-            background: #8f2d20;
-        }
-
-        .account-menu-panel .delete {
-            width: 100%;
-            border-color: #a33d32;
-            background: #a33d32;
-            color: #fff;
-            justify-content: center;
-            text-align: center;
-            transition: background .15s, border-color .15s;
-        }
-
-        .account-menu-panel .delete:hover {
-            border-color: #8f2d20;
-            background: #8f2d20;
-            color: #fff;
+        .edit-button:hover {
+            border-color: var(--accent-hover);
+            background: var(--accent-hover);
         }
 
         .pagination {
@@ -486,7 +330,7 @@
 
         <div class="topbar-actions">
             <a href="{{ route('admin.files') }}" class="topbar-link">Armazenar arquivos</a>
-            <a href="{{ route('chat') }}" class="back-button">← Voltar ao chat</a>
+            <a href="{{ route('chat') }}" class="back-button">Voltar ao chat</a>
         </div>
     </header>
 
@@ -520,7 +364,7 @@
                             <th>Nome</th>
                             <th>E-mail</th>
                             <th>Permissão</th>
-                            <th>Ação</th>
+                            <th>Editar</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -532,47 +376,9 @@
                                     {{ $usuario->is_admin ? 'Administrador' : 'Usuário' }}
                                 </td>
                                 <td>
-                                    <details class="account-menu">
-                                        <summary>Ações</summary>
-                                        <div class="account-menu-panel">
-                                            <details class="edit-account">
-                                                <summary>Editar</summary>
-                                                <form class="edit-account-form" method="POST" action="{{ route('admin.accounts.update', $usuario) }}">
-                                                    @csrf
-                                                    @method('PUT')
-                                                    <label for="name-{{ $usuario->id }}">Nome</label>
-                                                    <input id="name-{{ $usuario->id }}" name="name" type="text" value="{{ $usuario->name }}" required maxlength="255">
-                                                    <label for="email-{{ $usuario->id }}">E-mail</label>
-                                                    <input id="email-{{ $usuario->id }}" name="email" type="email" value="{{ $usuario->email }}" required maxlength="255">
-                                                    <label for="password-{{ $usuario->id }}">Nova senha (opcional)</label>
-                                                    <input id="password-{{ $usuario->id }}" name="password" type="password" minlength="8" autocomplete="new-password">
-                                                    <label for="password-confirmation-{{ $usuario->id }}">Confirmar nova senha</label>
-                                                    <input id="password-confirmation-{{ $usuario->id }}" name="password_confirmation" type="password" minlength="8" autocomplete="new-password">
-                                                    <button class="btn promote menu-action" type="submit">
-                                                        Salvar alterações
-                                                    </button>
-                                                </form>
-                                            </details>
-
-                                            @if(auth()->id() !== $usuario->id)
-                                                <form method="POST" action="{{ route('admin.accounts.toggle-admin', $usuario) }}">
-                                                    @csrf
-                                                    @method('PATCH')
-                                                    <button class="btn {{ $usuario->is_admin ? 'remove' : 'promote' }} menu-action" type="submit">
-                                                        {{ $usuario->is_admin ? 'Remover adm' : 'Promover a adm' }}
-                                                    </button>
-                                                </form>
-
-                                                <form method="POST" action="{{ route('admin.accounts.delete', $usuario) }}" onsubmit="return confirm('Tem certeza que deseja excluir esta conta? Esta ação não pode ser desfeita.');">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button class="btn delete menu-action" type="submit">Excluir conta</button>
-                                                </form>
-                                            @else
-                                                <span class="current">Esta é a conta atual</span>
-                                            @endif
-                                        </div>
-                                    </details>
+                                    <a class="btn edit-button" href="{{ route('admin.accounts.edit', $usuario) }}">
+                                        Editar
+                                    </a>
                                 </td>
                             </tr>
                         @endforeach
