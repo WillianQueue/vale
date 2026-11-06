@@ -7,6 +7,21 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Vale IA</title>
 
+    <script>
+        (() => {
+            const savedTheme = localStorage.getItem('vale_theme');
+            const followsSystem = savedTheme !== 'dark' && savedTheme !== 'light';
+            const systemPrefersDark = window.matchMedia(
+                '(prefers-color-scheme: dark)'
+            ).matches;
+
+            document.documentElement.dataset.theme =
+                savedTheme === 'dark' || (followsSystem && systemPrefersDark)
+                    ? 'dark'
+                    : 'light';
+        })();
+    </script>
+
     <style>
         * {
             box-sizing: border-box;
@@ -27,15 +42,17 @@
             --user: #0f1d18;
         }
 
-        body.dark {
-            --bg: #0f1d18;
-            --surface: #162821;
-            --surface-soft: #1e352b;
-            --border: #294637;
-            --ink: #e4ede7;
-            --muted: #a5bdb0;
-            --sidebar: #09120e;
-            --user: #244534;
+        html[data-theme="dark"] {
+            --bg: #1a1a1a;
+            --surface: #262626;
+            --surface-soft: #333333;
+            --border: #3d3d3d;
+            --ink: #f2f2ef;
+            --muted: #b0b0aa;
+            --accent: #78a984;
+            --accent-hover: #638f6f;
+            --sidebar: #202020;
+            --user: #303030;
         }
 
         html,
@@ -770,14 +787,16 @@
             --user: transparent;
         }
 
-        body.dark {
-            --bg: #0f1d18;
-            --surface: #16302a;
-            --surface-soft: #24453a;
-            --border: #315748;
-            --ink: #f5f5f5;
-            --muted: #b9c8bf;
-            --sidebar: #0b1511;
+        html[data-theme="dark"] {
+            --bg: #1a1a1a;
+            --surface: #262626;
+            --surface-soft: #333333;
+            --border: #3d3d3d;
+            --ink: #f2f2ef;
+            --muted: #b0b0aa;
+            --accent: #78a984;
+            --accent-hover: #638f6f;
+            --sidebar: #202020;
             --user: transparent;
         }
 
@@ -786,7 +805,7 @@
         }
 
         .sidebar {
-            width: 286px;
+            width: 258px;
             padding: 22px 14px 16px;
             background: var(--sidebar);
             border-right: 1px solid var(--border);
@@ -889,7 +908,7 @@
         }
 
         .main {
-            margin-left: 286px;
+            margin-left: 258px;
         }
 
         .topbar {
@@ -913,7 +932,7 @@
             }
 
             .sidebar.open ~ .main {
-                margin-left: 286px;
+                margin-left: 258px;
             }
         }
 
@@ -1054,9 +1073,9 @@
             background: var(--surface);
         }
 
-        body.dark .message.user .message-content {
-            border-color: #426451;
-            background: #244534;
+        html[data-theme="dark"] .message.user .message-content {
+            border-color: #45634b;
+            background: #303030;
         }
 
         .input-area {
@@ -1907,18 +1926,28 @@
         });
 
         darkMode.addEventListener('change', () => {
-            document.body.classList.toggle('dark', darkMode.checked);
-
+            document.documentElement.dataset.theme =
+                darkMode.checked ? 'dark' : 'light';
             localStorage.setItem(
                 'vale_theme',
                 darkMode.checked ? 'dark' : 'light'
             );
         });
 
-        if (localStorage.getItem('vale_theme') === 'dark') {
-            document.body.classList.add('dark');
-            darkMode.checked = true;
-        }
+        const themePreference = localStorage.getItem('vale_theme');
+        const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
+
+        darkMode.checked =
+            themePreference === 'dark' ||
+            (themePreference !== 'light' && systemTheme.matches);
+
+        systemTheme.addEventListener('change', (event) => {
+            if (localStorage.getItem('vale_theme') === null) {
+                document.documentElement.dataset.theme =
+                    event.matches ? 'dark' : 'light';
+                darkMode.checked = event.matches;
+            }
+        });
     </script>
 </body>
 
